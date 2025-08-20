@@ -1,0 +1,57 @@
+/* ====== Certificados (conteúdo) ====== */
+.cert__wrap{ padding-top: 8px; }
+
+/* Título e subtítulo */
+.cert__title{
+  margin: 0 0 6px;
+  font-size: clamp(1.6rem, 2.6vw, 2rem);
+  font-weight: 800;
+  color: #1f2937;
+}
+.cert__subtitle{
+  margin: 0;
+  color: #64748b;
+  max-width: 720px;
+  line-height: 1.6;
+}
+
+/* Seção */
+.cert__sectionTitle{
+  margin: 22px 0 12px;
+  font-size: 1.1rem;
+  color: #111827;
+  font-weight: 700;
+}
+
+/* Card de “Adicionar Certificado” (dashed) */
+.cert__add{
+  display: grid;
+  place-items: center;
+  width: 260px;
+  height: 200px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px dashed #d7dbe1;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .08s ease;
+}
+.cert__add:hover{
+  border-color: #9db2c7;
+  box-shadow: 0 8px 22px rgba(0,0,0,.08);
+  transform: translateY(-1px);
+}
+.cert__add:active{ transform: translateY(0); }
+
+.cert__addIcon{ display: block; margin-bottom: 8px; opacity: .9; }
+.cert__addText{
+  font-size: .95rem;
+  color: #6b7280;
+}
+
+/* Responsivo: mantém a hierarquia bonita em telas menores */
+@media (max-width: 780px){
+  .cert__subtitle{ max-width: none; }
+  .cert__add{ width: 100%; max-width: 360px; }
+}

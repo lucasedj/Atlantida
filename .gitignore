@@ -1,0 +1,72 @@
+# ===================================
+# Node.js
+# ===================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+.pnpm-debug.log
+
+# ===================================
+# Build / Output
+# ===================================
+dist/
+build/
+.next/
+out/
+coverage/
+.tmp/
+temp/
+.cache/
+*.log
+
+# ===================================
+# IDEs / Editores
+# ===================================
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ===================================
+# Sistema Operacional
+# ===================================
+.DS_Store
+Thumbs.db
+
+# ===================================
+# Testes
+# ===================================
+jest-html-reporters-*
+coverage-final.json
+
+# ===================================
+# Env / Configurações Locais
+# ===================================
+.env
+.env.*       # ex: .env.local, .env.development
+*.local
+*.secret
+*.backup
+
+# ===================================
+# Uploads e arquivos grandes
+# ===================================
+uploads/
+*.zip
+*.tar
+*.gz
+*.rar
+
+# ===================================
+# Logs do Mongo / Docker
+# ===================================
+/data/db
+/mongod.log
+docker-compose.override.yml
