@@ -49,10 +49,14 @@ export default function Logged() {
           <div className="logged__cardMedia">
             <img src="/images/logo-mergulho.png" alt="" aria-hidden />
           </div>
-          <button className="logged__primaryBtn" type="button">
+          <Link
+            to="/logged/registrar-mergulho"
+            className="logged__primaryBtn"
+            role="button"
+          >
             <span className="logged__plus" aria-hidden>＋</span>
             Registrar mergulho
-          </button>
+          </Link>
         </div>
 
         {/* Sair */}
