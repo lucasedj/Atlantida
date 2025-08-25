@@ -257,8 +257,8 @@ textarea.input{
 .segmented__btn:is(:focus-visible){ box-shadow: 0 0 0 3px var(--ring); outline: none; }
 .segmented__btn.is-selected,
 .segmented__btn[aria-pressed="true"]{
-  border-color: #bfdbfe;
-  background: #eff6ff;
+  border-color: #1e7cff;
+  background: #ffffff;
   color: var(--ink-800);
 }
 

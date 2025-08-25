@@ -8,22 +8,26 @@ export default function Step3() {
   const navigate = useNavigate();
 
   /* ---------- Estado dos grupos ---------- */
-  // multi-select
-  const [weather, setWeather] = useState(new Set());      // condições climáticas
-  const [waves, setWaves] = useState(new Set());          // ondas (ex.: pode marcar mais de um se quiser)
-  const [current, setCurrent] = useState(new Set());      // correnteza
-  const [swell, setSwell] = useState(new Set());          // ondulação
+  // single-select (agora!)
+  const [weather, setWeather]   = useState("");   // condições climáticas
+  const [waves, setWaves]       = useState("");   // ondas
+  const [current, setCurrent]   = useState("");   // correnteza
 
-  // single-select
-  const [waterType, setWaterType] = useState("");         // salgada | doce
-  const [waterBody, setWaterBody] = useState("");         // oceano | lago | pedreira
-  const [visibility, setVisibility] = useState("");       // alto | moderado | baixo
+  // multi-select (mantido)
+  const [swell, setSwell]       = useState(new Set()); // ondulação (pode multi)
 
-  const [tAir, setTAir] = useState("");
+  // single-select (já eram)
+  const [waterType, setWaterType]   = useState("");  // salgada | doce
+  const [waterBody, setWaterBody]   = useState("");  // oceano | lago | pedreira
+  const [visibility, setVisibility] = useState("");  // alto | moderado | baixo
+
+  // temperaturas
+  const [tAir, setTAir]         = useState("");
   const [tSurface, setTSurface] = useState("");
-  const [tBottom, setTBottom] = useState("");
+  const [tBottom, setTBottom]   = useState("");
 
-  /* ---------- Helpers de seleção ---------- */
+  /* ---------- Helpers ---------- */
+  const selectOne = useCallback((value, setFn) => setFn(value), []);
   const toggleInSet = useCallback((value, setFn) => {
     setFn(prev => {
       const next = new Set(prev);
@@ -32,9 +36,6 @@ export default function Step3() {
     });
   }, []);
 
-  const selectOne = useCallback((value, setFn) => setFn(value), []);
-
-  /* ---------- Render utilitário para botões ---------- */
   const SegBtn = ({ active, onClick, children }) => (
     <button
       type="button"
@@ -59,7 +60,6 @@ export default function Step3() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Aqui você poderia salvar num contexto/store antes de avançar
     navigate("/logged/registrar-mergulho/Step4");
   };
 
@@ -68,11 +68,7 @@ export default function Step3() {
       {/* ========= Sidebar ========= */}
       <aside className="logged__sidebar" aria-label="Navegação principal">
         <div className="logged__brand">
-          <img
-            src="/images/logo-atlantida-branca.png"
-            alt="Atlântida"
-            className="logged__logoImg"
-          />
+          <img src="/images/logo-atlantida-branca.png" alt="Atlântida" className="logged__logoImg" />
         </div>
 
         <nav className="logged__nav">
@@ -83,7 +79,6 @@ export default function Step3() {
           <MenuLink to="/logged/perfil" label="Perfil do usuário" icon="/images/mini-icon/perfil.png" />
         </nav>
 
-        {/* Atalho registrar */}
         <div className="logged__card" aria-label="Atalho para registrar mergulho">
           <div className="logged__cardMedia">
             <img src="/images/logo-mergulho.png" alt="" aria-hidden />
@@ -113,26 +108,11 @@ export default function Step3() {
 
           {/* Etapas */}
           <nav className="steps" aria-label="Etapas do formulário">
-            <span className="steps__item">
-              <span className="steps__num">1</span>
-              <span className="steps__label">Informações Gerais</span>
-            </span>
-            <span className="steps__item">
-              <span className="steps__num">2</span>
-              <span className="steps__label">Profundidade e Tempo</span>
-            </span>
-            <span className="steps__item is-active" aria-current="step">
-              <span className="steps__num">3</span>
-              <span className="steps__label">Condições Ambientais</span>
-            </span>
-            <span className="steps__item">
-              <span className="steps__num">4</span>
-              <span className="steps__label">Equipamentos</span>
-            </span>
-            <span className="steps__item">
-              <span className="steps__num">5</span>
-              <span className="steps__label">Experiência e Observações</span>
-            </span>
+            <span className="steps__item"><span className="steps__num">1</span><span className="steps__label">Informações Gerais</span></span>
+            <span className="steps__item"><span className="steps__num">2</span><span className="steps__label">Profundidade e Tempo</span></span>
+            <span className="steps__item is-active" aria-current="step"><span className="steps__num">3</span><span className="steps__label">Condições Ambientais</span></span>
+            <span className="steps__item"><span className="steps__num">4</span><span className="steps__label">Equipamentos</span></span>
+            <span className="steps__item"><span className="steps__num">5</span><span className="steps__label">Experiência e Observações</span></span>
           </nav>
           <div className="steps__progress is-3" aria-hidden="true" />
 
@@ -142,17 +122,13 @@ export default function Step3() {
           <form className="card form" onSubmit={handleSubmit} noValidate>
             <h2 className="form__title">Condições Ambientais</h2>
 
-            {/* Condições Climáticas (multi) */}
+            {/* Condições Climáticas (single) */}
             <div className="field">
               <label className="label" htmlFor="wx-group">Condições Climáticas</label>
               <span className="hint">Como estavam as condições climáticas?</span>
               <div id="wx-group" className="segmented" style={{ flexWrap: "wrap", rowGap: 8 }}>
                 {["Ensolarado","Parcialmente nublado","Nublado","Chuvoso","Com vento","Com neblina"].map(v => (
-                  <SegBtn
-                    key={v}
-                    active={weather.has(v)}
-                    onClick={() => toggleInSet(v, setWeather)}
-                  >
+                  <SegBtn key={v} active={weather === v} onClick={() => selectOne(v, setWeather)}>
                     {v}
                   </SegBtn>
                 ))}
@@ -166,31 +142,16 @@ export default function Step3() {
 
               <div className="form-grid" style={{ marginTop: 6 }}>
                 <div className="field">
-                  <input
-                    type="number"
-                    className="input"
-                    placeholder="Temperatura do Ar"
-                    value={tAir}
-                    onChange={(e) => setTAir(e.target.value)}
-                  />
+                  <input type="number" className="input" placeholder="Temperatura do Ar"
+                         value={tAir} onChange={(e) => setTAir(e.target.value)} />
                 </div>
                 <div className="field">
-                  <input
-                    type="number"
-                    className="input"
-                    placeholder="Temperatura na Superfície"
-                    value={tSurface}
-                    onChange={(e) => setTSurface(e.target.value)}
-                  />
+                  <input type="number" className="input" placeholder="Temperatura na Superfície"
+                         value={tSurface} onChange={(e) => setTSurface(e.target.value)} />
                 </div>
                 <div className="field">
-                  <input
-                    type="number"
-                    className="input"
-                    placeholder="Temperatura no Fundo"
-                    value={tBottom}
-                    onChange={(e) => setTBottom(e.target.value)}
-                  />
+                  <input type="number" className="input" placeholder="Temperatura no Fundo"
+                         value={tBottom} onChange={(e) => setTBottom(e.target.value)} />
                 </div>
               </div>
             </div>
@@ -201,11 +162,7 @@ export default function Step3() {
               <span className="hint">Qual é o tipo de água?</span>
               <div className="segmented">
                 {["Salgada","Doce"].map(v => (
-                  <SegBtn
-                    key={v}
-                    active={waterType === v}
-                    onClick={() => selectOne(v, setWaterType)}
-                  >
+                  <SegBtn key={v} active={waterType === v} onClick={() => selectOne(v, setWaterType)}>
                     {v}
                   </SegBtn>
                 ))}
@@ -218,11 +175,7 @@ export default function Step3() {
               <span className="hint">Em que corpo de água você mergulhou?</span>
               <div className="segmented">
                 {["Oceano","Lago","Pedreira"].map(v => (
-                  <SegBtn
-                    key={v}
-                    active={waterBody === v}
-                    onClick={() => selectOne(v, setWaterBody)}
-                  >
+                  <SegBtn key={v} active={waterBody === v} onClick={() => selectOne(v, setWaterBody)}>
                     {v}
                   </SegBtn>
                 ))}
@@ -235,62 +188,46 @@ export default function Step3() {
               <span className="hint">Como estava a visibilidade?</span>
               <div className="segmented">
                 {["Alto","Moderado","Baixo"].map(v => (
-                  <SegBtn
-                    key={v}
-                    active={visibility === v}
-                    onClick={() => selectOne(v, setVisibility)}
-                  >
+                  <SegBtn key={v} active={visibility === v} onClick={() => selectOne(v, setVisibility)}>
                     {v}
                   </SegBtn>
                 ))}
               </div>
             </div>
 
-            {/* Ondas (multi) */}
+            {/* Ondas (single agora) */}
             <div className="field" style={{ marginTop: 12 }}>
               <label className="label">Ondas</label>
               <span className="hint">Como estavam as ondas?</span>
               <div className="segmented" style={{ flexWrap: "wrap", rowGap: 8 }}>
                 {["Nenhum","Pequeno","Médio","Grande"].map(v => (
-                  <SegBtn
-                    key={v}
-                    active={waves.has(v)}
-                    onClick={() => toggleInSet(v, setWaves)}
-                  >
+                  <SegBtn key={v} active={waves === v} onClick={() => selectOne(v, setWaves)}>
                     {v}
                   </SegBtn>
                 ))}
               </div>
             </div>
 
-            {/* Correnteza (multi) */}
+            {/* Correnteza (single agora) */}
             <div className="field" style={{ marginTop: 12 }}>
               <label className="label">Correnteza</label>
               <span className="hint">Como estava a correnteza?</span>
               <div className="segmented" style={{ flexWrap: "wrap", rowGap: 8 }}>
                 {["Nenhum","Leve","Médio","Forte"].map(v => (
-                  <SegBtn
-                    key={v}
-                    active={current.has(v)}
-                    onClick={() => toggleInSet(v, setCurrent)}
-                  >
+                  <SegBtn key={v} active={current === v} onClick={() => selectOne(v, setCurrent)}>
                     {v}
                   </SegBtn>
                 ))}
               </div>
             </div>
 
-            {/* Ondulação (multi) */}
+            {/* Ondulação (continua multi) */}
             <div className="field" style={{ marginTop: 12 }}>
               <label className="label">Ondulação</label>
               <span className="hint">Como estava a ondulação?</span>
               <div className="segmented" style={{ flexWrap: "wrap", rowGap: 8 }}>
                 {["Nenhum","Leve","Médio","Forte"].map(v => (
-                  <SegBtn
-                    key={v}
-                    active={swell.has(v)}
-                    onClick={() => toggleInSet(v, setSwell)}
-                  >
+                  <SegBtn key={v} active={current === v} onClick={() => selectOne(v, setCurrent)}>
                     {v}
                   </SegBtn>
                 ))}
