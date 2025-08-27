@@ -246,9 +246,99 @@
   .logged__card{ display: none; } /* opcional: esconde o card no mobile */
 }
 
-/* ---------- Dark Mode opcional ---------- */
-@media (prefers-color-scheme: dark){
-  .logged__content{
-    background: radial-gradient(120% 120% at -10% -10%, #ffffff 0%, #ffffff 45%, #ffffff 100%);
-  }
+/* ===== Dashboard ===== */
+.dash { max-width: 1120px; margin: 0 auto; }
+.dash__head { margin-bottom: 12px; }
+.dash__title{ margin:0 0 6px; font-size:clamp(1.6rem,2.6vw,2.1rem); font-weight:800; color:#0f172a; }
+.dash__sub{ margin:0; color:#64748b; max-width:760px; }
+.dash__sectionTitle{ margin:0 0 10px; font-size:1.05rem; font-weight:800; color:#111827; }
+
+/* Grid topo: previsão x mapa */
+.dash__grid{
+  display:grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap:22px;
+  margin:8px 0 18px;
 }
+@media (max-width: 980px){ .dash__grid{ grid-template-columns:1fr; } }
+
+/* Card base */
+.card{
+  background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+
+/* ===== Previsão ===== */
+.weather .dash__sectionTitle{ padding:12px 14px 0; }
+.weather__box{ padding:12px 14px 14px; color:#1f2937; }
+.weather__top{
+  display:grid; grid-template-columns:auto 1fr; gap:8px 20px; align-items:center; margin-bottom:8px;
+}
+.weather__temp{ grid-row:1 / span 2; font-size:2rem; font-weight:800; color:#1f2937; }
+.weather__cond, .weather__place{ display:inline-flex; align-items:center; gap:8px; color:#475569; }
+.weather__week{
+  display:grid; grid-template-columns:repeat(8,1fr); gap:4px; margin-top:8px; padding-top:8px; border-top:1px solid #eef2f7;
+}
+.weather__day{ display:grid; place-items:center; padding:8px 0; color:#1d4ed8; }
+.weather__d{ font-weight:700; color:#334155; margin-bottom:2px; }
+.weather__i{ font-size:18px; line-height:1; }
+.weather__t{ font-weight:700; } .weather__t small{ color:#64748b; font-weight:600; }
+
+/* ===== Mapa + busca ===== */
+.places .dash__sectionTitle{ margin-bottom:8px; }
+.places__map{
+  position:relative;
+  height:320px;
+  border-radius:12px;
+  overflow:hidden;
+  border:1px solid #e5e7eb;
+  background:
+    radial-gradient(120% 120% at 10% 10%, #bce3ee 0%, #a2d2df 45%, #88c3d4 100%); /* fallback se a imagem não existir */
+}
+.places__mapImg{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; filter:saturate(1.05);
+}
+.pin{
+  position:absolute; z-index:1; width:8px; height:8px; border-radius:999px;
+  background:#1e7cff; box-shadow:0 0 0 3px rgba(30,124,255,.18);
+}
+
+.places__search{
+  display:grid; grid-template-columns:1fr auto; gap:10px; margin-top:12px;
+}
+.search__input{
+  display:flex; align-items:center; gap:8px;
+  height:40px; padding:0 12px;
+  border:1px solid #d1d5db; border-radius:10px; background:#fff; color:#111827;
+}
+.search__input input{ border:none; outline:none; flex:1 1 auto; font:inherit; }
+.search__btn{
+  width:44px; height:40px; border:none; border-radius:10px;
+  background:#1e7cff; color:#fff; cursor:pointer; font-size:18px;
+}
+
+/* ===== Tabela últimos mergulhos ===== */
+.dives .table{
+  border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; background:#fff;
+}
+.table__head, .table__row{
+  display:grid; grid-template-columns:1.2fr 0.8fr 1fr 1fr; align-items:center;
+}
+.table__head{
+  background:#f3f4f6; color:#111827; font-weight:800; padding:12px 16px; border-bottom:1px solid #e5e7eb;
+}
+.table__row{
+  min-height:58px; padding:0 16px; border-bottom:1px solid #eef2f7;
+}
+.table__row:last-child{ border-bottom:none; }
+.u-right{ text-align:right; }
+
+.pager{
+  display:flex; gap:10px; justify-content:center; align-items:center; padding:12px 0 2px;
+}
+.pager button{
+  width:28px; height:28px; border-radius:999px; border:1px solid #d1d5db;
+  background:#fff; cursor:pointer; font-size:16px; line-height:1;
+}
+.pager button:hover{ background:#f8fafc; }
