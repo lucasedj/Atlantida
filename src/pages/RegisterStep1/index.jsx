@@ -44,6 +44,7 @@ const RegistrationForm = () => {
     navigate("/registerE"); // ✅ redireciona após validação
   };
 
+  
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
