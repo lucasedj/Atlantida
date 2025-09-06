@@ -8,6 +8,7 @@ import Article3 from "./pages/Articles/Article-3";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import RegisterStep1 from "./pages/RegisterStep1";
+import RegisterStep2 from "./pages/RegisterStep2";
 import ForgotPassword from "./pages/ForgotPassword";
 import Error404 from "./pages/Error404";
 import Terms from "./pages/Terms";
@@ -35,6 +36,7 @@ export default function AppRoutes() {
         {/* Autenticação / termos */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegisterStep1 />} />
+        <Route path="/registerE" element={<RegisterStep2 />} />
         <Route path="/forgotpassword" element={<ForgotPassword />} />
         <Route path="/termos" element={<Terms />} />
 
