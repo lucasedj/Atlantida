@@ -1,6 +1,7 @@
-import React, { memo } from "react";
-import { Link, NavLink } from "react-router-dom";
+import React, { memo, useEffect, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import "./logged.css";
+import { getCurrentUser, me, logout } from "../../features/auth/authService";
 
 /* ---------------------------
  * Itens reutilizáveis
@@ -33,7 +34,6 @@ function WeatherCard() {
 
       <div className="weather__box">
         <div className="weather__top">
-          {/* números e textos podem ser preenchidos por API depois */}
           <div className="weather__temp" aria-live="polite">—°C</div>
 
           <div className="weather__cond">
@@ -53,7 +53,6 @@ function WeatherCard() {
           </div>
         </div>
 
-        {/* grade de dias (placeholder) */}
         <ul className="weather__week" aria-label="Próximos dias">
           {Array.from({ length: 8 }).map((_, i) => (
             <li key={i} className="weather__day" aria-hidden>
@@ -70,7 +69,6 @@ function WeatherCard() {
 
 function PlacesCard() {
   const handleMapError = (e) => {
-    // se a imagem do mapa não existir, cai no fallback do CSS
     e.currentTarget.style.display = "none";
   };
 
@@ -144,6 +142,33 @@ function DivesTable() {
  * Página Logged
  * ------------------------- */
 export default function Logged() {
+  const { state } = useLocation();
+  const navigate = useNavigate();
+  const [user, setUser] = useState(state?.user || getCurrentUser());
+
+  useEffect(() => {
+    // fallback: se recarregar a página e não tiver user no storage
+    if (!user) {
+      me()
+        .then((u) => {
+          setUser(u);
+          try { localStorage.setItem("user", JSON.stringify(u)); } catch {}
+        })
+        .catch(() => {});
+    }
+  }, [user]);
+
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.name ||
+    user?.email ||
+    "usuário";
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   return (
     <div className="logged">
       {/* ===== Sidebar ===== */}
@@ -174,17 +199,17 @@ export default function Logged() {
           </Link>
         </div>
 
-        <Link to="/login" className="logged__logout">
+        <button type="button" className="logged__logout" onClick={handleLogout}>
           <img src="/images/mini-icon/Sair.png" alt="" className="logged__icon" aria-hidden />
           <span>Sair do sistema</span>
-        </Link>
+        </button>
       </aside>
 
       {/* ===== Conteúdo ===== */}
       <main className="logged__content">
         <div className="page dash">
           <header className="dash__head">
-            <h1 className="dash__title">Olá, {"{User}"}!</h1>
+            <h1 className="dash__title">Olá, {displayName}!</h1>
             <p className="dash__sub">
               Bem-vindo de volta ao seu espaço de mergulho — aqui você encontra um
               resumo do seu desempenho subaquático. Vamos mergulhar nos detalhes!

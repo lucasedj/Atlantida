@@ -1,11 +1,74 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 
-import "../Logged/logged.css";      
-import "./profile.css";             
+import { getCurrentUser, me } from "../../features/auth/authService";
+
+import "../Logged/logged.css";
+import "./profile.css";
 
 export default function Profile() {
   const [showPassword, setShowPassword] = useState(false);
+  const [user, setUser] = useState(null);
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    birthDate: "",
+    email: "",
+    cep: "",
+    country: "",
+    state: "",
+    city: "",
+    district: "",
+    street: "",
+    complement: "",
+    number: "",
+  });
+
+  // formata para yyyy-MM-dd (input date)
+  function toInputDate(d) {
+    if (!d) return "";
+    const dt = new Date(d);
+    if (isNaN(dt)) return "";
+    // cuidado com timezone — ISO já resolve para campos date
+    return dt.toISOString().split("T")[0];
+  }
+
+  function hydrate(u) {
+    if (!u) return;
+    setUser(u);
+    setForm({
+      firstName: u.firstName ?? "",
+      lastName: u.lastName ?? "",
+      birthDate: toInputDate(u.birthDate),
+      email: u.email ?? "",
+      cep: u.cep ?? "",
+      country: u.country ?? "",
+      state: u.state ?? "",
+      city: u.city ?? "",
+      district: u.district ?? "",
+      street: u.street ?? "",
+      complement: u.complement ?? "",
+      number: u.number ?? "",
+    });
+  }
+
+  useEffect(() => {
+    // 1º tenta do localStorage
+    const cached = getCurrentUser();
+    if (cached) {
+      hydrate(cached);
+      return;
+    }
+    // 2º busca do backend usando o token
+    me()
+      .then((u) => {
+        hydrate(u);
+        try { localStorage.setItem("user", JSON.stringify(u)); } catch {}
+      })
+      .catch(() => {
+        // se der erro, mantém vazio
+      });
+  }, []);
 
   const MenuLink = ({ to, label, icon, end = false }) => (
     <NavLink
@@ -70,52 +133,51 @@ export default function Profile() {
             <div className="profile__grid">
               <div className="field">
                 <label className="label">Nome</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.firstName} readOnly />
               </div>
               <div className="field">
                 <label className="label">Sobrenome</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.lastName} readOnly />
               </div>
               <div className="field">
                 <label className="label">Data de nascimento</label>
-                <input className="input" type="text" />
+                <input className="input" type="date" value={form.birthDate} readOnly />
               </div>
               <div className="field">
                 <label className="label">E-mail</label>
-                <input className="input" type="email" />
+                <input className="input" type="email" value={form.email} readOnly />
               </div>
             </div>
           </section>
 
-          {/* Alterar senha */}
+          {/* Alterar senha (exibição apenas; não mostrar senha atual por segurança) */}
           <section className="profile__section">
             <h2 className="profile__sectionTitle">Alterar senha</h2>
             <div className="profile__grid">
               <div className="field">
                 <label className="label">Senha antiga</label>
-                <input 
-                  className="input" 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="Informe sua senha" 
+                <input
+                  className="input"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Informe sua senha"
                 />
               </div>
               <div className="field">
                 <label className="label">Confirmar senha</label>
-                <input 
-                  className="input" 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="Repita a nova senha" 
+                <input
+                  className="input"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Repita a nova senha"
                 />
               </div>
             </div>
 
-            {/* Checkbox para mostrar senha */}
             <div style={{ marginTop: "8px" }}>
               <label style={{ fontSize: "0.9rem", color: "#374151" }}>
-                <input 
-                  type="checkbox" 
-                  checked={showPassword} 
-                  onChange={() => setShowPassword(!showPassword)} 
+                <input
+                  type="checkbox"
+                  checked={showPassword}
+                  onChange={() => setShowPassword(!showPassword)}
                   style={{ marginRight: "6px" }}
                 />
                 Mostrar senha
@@ -129,35 +191,35 @@ export default function Profile() {
             <div className="profile__grid">
               <div className="field">
                 <label className="label">CEP</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.cep} readOnly />
               </div>
               <div className="field">
                 <label className="label">País</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.country} readOnly />
               </div>
               <div className="field">
                 <label className="label">Estado</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.state} readOnly />
               </div>
               <div className="field">
                 <label className="label">Cidade</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.city} readOnly />
               </div>
               <div className="field">
                 <label className="label">Bairro</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.district} readOnly />
               </div>
               <div className="field">
                 <label className="label">Logradouro</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.street} readOnly />
               </div>
               <div className="field">
                 <label className="label">Complemento</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.complement} readOnly />
               </div>
               <div className="field">
                 <label className="label">Número</label>
-                <input className="input" type="text" />
+                <input className="input" type="text" value={form.number} readOnly />
               </div>
             </div>
           </section>

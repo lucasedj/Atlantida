@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import SliderImages from "../../components/SliderImages";
 import logo from "../../assets/illustrations/logo-atlantida.svg";
 import styles from "./Login.module.css";
-import { login } from "../../features/auth/authService"; 
+import { login } from "../../features/auth/authService";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -17,10 +17,10 @@ function Login() {
     setErr("");
     setLoading(true);
     try {
-      await login(email, password);
-      navigate("/logged"); 
+      const user = await login(email, password);             
+      navigate("/logged", { state: { user } });               
     } catch (error) {
-      setErr(error.message || "Erro ao fazer login");
+      setErr(error?.message || "Erro ao fazer login");
     } finally {
       setLoading(false);
     }
@@ -66,7 +66,7 @@ function Login() {
             required
           />
 
-          {err && <p className={styles.error}>{err}</p>} {/* mensagem de erro */}
+          {err && <p className={styles.error}>{err}</p>}
 
           <button
             type="submit"
