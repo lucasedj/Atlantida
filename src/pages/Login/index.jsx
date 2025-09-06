@@ -1,9 +1,31 @@
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import SliderImages from "../../components/SliderImages";
-import logo from "../../assets/illustrations/logo-atlantida.svg"
+import logo from "../../assets/illustrations/logo-atlantida.svg";
 import styles from "./Login.module.css";
-import { Link } from "react-router-dom";
+import { login } from "../../features/auth/authService"; 
 
 function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setErr("");
+    setLoading(true);
+    try {
+      await login(email, password);
+      navigate("/logged"); 
+    } catch (error) {
+      setErr(error.message || "Erro ao fazer login");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.carousel}>
@@ -17,27 +39,43 @@ function Login() {
 
         <h1 className={styles.title}>Faça seu login</h1>
 
-        <label htmlFor="email">Email</label>
-        <input
-          className={styles.input}
-          type="email"
-          name="email"
-          id="email"
-          placeholder="exemplo@seuemail.com"
-        />
+        <form onSubmit={handleSubmit}>
+          <label htmlFor="email">Email</label>
+          <input
+            className={styles.input}
+            type="email"
+            name="email"
+            id="email"
+            placeholder="exemplo@seuemail.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <label htmlFor="password" className={styles.label_password}>
-          Senha <Link to="/forgotpassword"> esqueceu a senha? </Link>
-        </label>
-        <input
-          className={styles.input}
-          type="password"
-          name="password"
-          id="password"
-          placeholder="Digite sua senha"
-        />
+          <label htmlFor="password" className={styles.label_password}>
+            Senha <Link to="/forgotpassword"> esqueceu a senha? </Link>
+          </label>
+          <input
+            className={styles.input}
+            type="password"
+            name="password"
+            id="password"
+            placeholder="Digite sua senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        <button className={styles.btn_login}>LOGIN</button>
+          {err && <p className={styles.error}>{err}</p>} {/* mensagem de erro */}
+
+          <button
+            type="submit"
+            className={styles.btn_login}
+            disabled={loading}
+          >
+            {loading ? "Entrando..." : "LOGIN"}
+          </button>
+        </form>
 
         <p className={styles.paragraph}>
           Não tem uma conta? <Link to="/register">Criar conta</Link>
