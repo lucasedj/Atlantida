@@ -1,10 +1,13 @@
 import AppRoutes from './routes'
+import { ContextHooks } from './context'
 
 function App() {
 
   return (
     <>
-      <AppRoutes />
+      <ContextHooks>
+        <AppRoutes />
+      </ContextHooks>
     </>
   )
 }
