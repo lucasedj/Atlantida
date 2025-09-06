@@ -1,0 +1,254 @@
+/* =====================================================
+   LOGGED (Dashboard) — Tema, layout e sidebar moderna
+   Funciona com o JSX que você enviou.
+===================================================== */
+
+/* ---------- Variáveis ---------- */
+:root{
+  --sidebar-w: 260px;
+  --sidebar-w-sm: 78px;
+
+  --blue-900: #0b5ed7;
+  --blue-800: #0a58ca;
+  --blue-700: #0b69ff;
+  --blue-600: #1e7cff;
+  --ink-100: #f8fafc;
+  --ink-200: #e5e7eb;
+  --ink-600: #64748b;
+  --ink-700: #334155;
+  --ink-800: #1f2937;
+
+  --bg: #ffffff;
+  --shadow-1: 0 4px 16px rgba(0,0,0,.08);
+  --shadow-2: 0 8px 24px rgba(0,0,0,.12);
+  --radius: 14px;
+  --radius-sm: 10px;
+}
+
+/* ---------- Layout base ---------- */
+.logged{
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  background: var(--bg);
+}
+
+/* ---------- Sidebar ---------- */
+.logged__sidebar{
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 14px;
+  color: #fff;
+  background:
+    linear-gradient(180deg, #007FFF 0%, #007FFF 50%, #007FFF 100%);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.06);
+}
+
+/* Brand (logo) */
+.logged__brand{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px 2px 8px;
+}
+.logged__logoImg{
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.18));
+}
+
+/* ---------- Navegação ---------- */
+.logged__nav{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Link padrão */
+.logged__item{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #eaf1ff;
+  text-decoration: none;
+  font-weight: 700;
+  letter-spacing: .1px;
+  transition: background .15s ease, transform .08s ease, color .15s ease;
+  outline: none;
+}
+
+/* Ícone do menu */
+.logged__icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  margin-right: 8px;
+}
+
+
+/* Hover/Focus */
+.logged__item:hover{
+  background: rgba(255,255,255,.12);
+  transform: translateY(-1px);
+}
+.logged__item:focus-visible{
+  box-shadow: 0 0 0 3px rgba(255,255,255,.25);
+  background: rgba(255,255,255,.12);
+}
+
+/* Ativo (NavLink adiciona .active) */
+.logged__item.active{
+  background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.14));
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+}
+
+/* ---------- Card: Registrar mergulho ---------- */
+.logged__card{
+  margin-top: auto; /* “empurra” o card para o fim da sidebar */
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: var(--shadow-1);
+}
+
+.logged__cardMedia{
+  width: 100%;
+  aspect-ratio: 16/11;
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.08));
+  margin-bottom: 10px;
+}
+.logged__cardMedia img{
+  width: 86%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 16px rgba(0,0,0,.2));
+}
+
+/* Botão primário */
+.logged__primaryBtn{
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--blue-800);
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .12s ease, background .12s ease;
+  box-shadow: 0 2px 0 rgba(0,0,0,.06), 0 6px 16px rgba(0,0,0,.12);
+}
+.logged__primaryBtn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 2px 0 rgba(0,0,0,.06), 0 10px 22px rgba(0,0,0,.18);
+}
+.logged__primaryBtn:active{ transform: translateY(0); }
+.logged__plus{ font-size: 18px; line-height: 1; }
+
+/* ---------- Logout ---------- */
+.logged__logout{
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+
+  /* estado normal (discreto na sidebar) */
+  background: transparent;
+  color: #eaf1ff;
+  text-decoration: none;
+  border: 2px solid rgba(255,255,255,.25);
+  box-shadow: none;
+  transition: background .18s ease, color .18s ease, border-color .18s ease,
+              box-shadow .18s ease, transform .08s ease;
+}
+
+.logged__logout .logged__icon{
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  /* deixa o ícone branco no estado normal também */
+  filter: brightness(0) invert(1);
+}
+
+.logged__logout:hover{
+  background: #dc3545;        /* vermelho sólido no hover */
+  color: #fff;                 /* texto branco */
+  border-color: #dc3545;
+  box-shadow: 0 6px 16px rgba(220,53,69,.35);
+  transform: translateY(-1px);
+}
+
+.logged__logout:hover .logged__icon{
+  filter: brightness(0) invert(1); /* garante ícone branco no hover */
+}
+
+.logged__logout:active{
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(220,53,69,.25);
+}
+
+/* ---------- Área de conteúdo ---------- */
+.logged__content{
+  min-height: 100dvh;
+  background:
+    radial-gradient(120% 120% at -10% -10%, #eef6ff 0%, #f7fbff 38%, #ffffff 60%)
+    no-repeat;
+  padding: 28px 28px 32px 28px;
+}
+
+/* Um contêiner base para futuros cards/títulos */
+.logged__content .page{
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
+/* ---------- Barra de rolagem sutil ---------- */
+.logged__sidebar::-webkit-scrollbar{ width: 10px; }
+.logged__sidebar::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.25);
+  border-radius: 999px;
+}
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 980px){
+  .logged{ grid-template-columns: var(--sidebar-w-sm) 1fr; }
+
+  /* Sidebar compacta: mostra só ícones */
+  .logged__sidebar{ padding: 18px 10px; }
+  .logged__item span:last-child,
+  .logged__logout span:last-child{
+    display: none;
+  }
+  .logged__item, .logged__logout{ justify-content: center; padding: 10px; }
+  .logged__brand{ justify-content: center; }
+  .logged__logoImg{ height: 26px; }
+  .logged__card{ display: none; } /* opcional: esconde o card no mobile */
+}
+
+/* ---------- Dark Mode opcional ---------- */
+@media (prefers-color-scheme: dark){
+  .logged__content{
+    background: radial-gradient(120% 120% at -10% -10%, #ffffff 0%, #ffffff 45%, #ffffff 100%);
+  }
+}
