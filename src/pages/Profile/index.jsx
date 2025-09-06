@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 
 import { getCurrentUser, me } from "../../features/auth/authService";
+import { apiFetch } from "../../services/api";
 
 import "../Logged/logged.css";
 import "./profile.css";
@@ -9,6 +10,14 @@ import "./profile.css";
 export default function Profile() {
   const [showPassword, setShowPassword] = useState(false);
   const [user, setUser] = useState(null);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  // backup para poder cancelar edição
+  const [formBackup, setFormBackup] = useState(null);
+
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -24,12 +33,11 @@ export default function Profile() {
     number: "",
   });
 
-  // formata para yyyy-MM-dd (input date)
+  // yyyy-mm-dd para <input type="date" />
   function toInputDate(d) {
     if (!d) return "";
     const dt = new Date(d);
     if (isNaN(dt)) return "";
-    // cuidado com timezone — ISO já resolve para campos date
     return dt.toISOString().split("T")[0];
   }
 
@@ -53,22 +61,78 @@ export default function Profile() {
   }
 
   useEffect(() => {
-    // 1º tenta do localStorage
     const cached = getCurrentUser();
     if (cached) {
       hydrate(cached);
-      return;
+    } else {
+      me()
+        .then((u) => {
+          hydrate(u);
+          try { localStorage.setItem("user", JSON.stringify(u)); } catch {}
+        })
+        .catch(() => {});
     }
-    // 2º busca do backend usando o token
-    me()
-      .then((u) => {
-        hydrate(u);
-        try { localStorage.setItem("user", JSON.stringify(u)); } catch {}
-      })
-      .catch(() => {
-        // se der erro, mantém vazio
-      });
   }, []);
+
+  function onChange(e) {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+  }
+
+  // entrar no modo edição: cria um snapshot para poder cancelar
+  function handleEdit() {
+    setMsg("");
+    setFormBackup(form);
+    setIsEditing(true);
+  }
+
+  // cancelar: restaura snapshot e sai do modo edição
+  function handleCancel() {
+    if (formBackup) setForm(formBackup);
+    setIsEditing(false);
+    setSaving(false);
+    setShowPassword(false);
+    setMsg("Edição cancelada.");
+  }
+
+  async function handleSave() {
+    setMsg("");
+    setSaving(true);
+    try {
+      const payload = { ...form };
+      const updated = await apiFetch("/api/users", {
+        method: "PUT",
+        auth: true,
+        body: payload,
+      });
+
+      setUser(updated);
+      try { localStorage.setItem("user", JSON.stringify(updated)); } catch {}
+
+      // atualiza backup com o salvo
+      setFormBackup({
+        firstName: updated.firstName ?? "",
+        lastName: updated.lastName ?? "",
+        birthDate: toInputDate(updated.birthDate),
+        email: updated.email ?? "",
+        cep: updated.cep ?? "",
+        country: updated.country ?? "",
+        state: updated.state ?? "",
+        city: updated.city ?? "",
+        district: updated.district ?? "",
+        street: updated.street ?? "",
+        complement: updated.complement ?? "",
+        number: updated.number ?? "",
+      });
+
+      setIsEditing(false);
+      setMsg("Dados atualizados com sucesso.");
+    } catch (err) {
+      setMsg(err?.message || "Falha ao salvar alterações.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const MenuLink = ({ to, label, icon, end = false }) => (
     <NavLink
@@ -133,24 +197,52 @@ export default function Profile() {
             <div className="profile__grid">
               <div className="field">
                 <label className="label">Nome</label>
-                <input className="input" type="text" value={form.firstName} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="firstName"
+                  value={form.firstName}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">Sobrenome</label>
-                <input className="input" type="text" value={form.lastName} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="lastName"
+                  value={form.lastName}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">Data de nascimento</label>
-                <input className="input" type="date" value={form.birthDate} readOnly />
+                <input
+                  className="input"
+                  type="date"
+                  name="birthDate"
+                  value={form.birthDate}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">E-mail</label>
-                <input className="input" type="email" value={form.email} readOnly />
+                <input
+                  className="input"
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
             </div>
           </section>
 
-          {/* Alterar senha (exibição apenas; não mostrar senha atual por segurança) */}
+          {/* Alterar senha (separado; não envia no PUT de perfil) */}
           <section className="profile__section">
             <h2 className="profile__sectionTitle">Alterar senha</h2>
             <div className="profile__grid">
@@ -160,6 +252,7 @@ export default function Profile() {
                   className="input"
                   type={showPassword ? "text" : "password"}
                   placeholder="Informe sua senha"
+                  readOnly={!isEditing}
                 />
               </div>
               <div className="field">
@@ -168,6 +261,7 @@ export default function Profile() {
                   className="input"
                   type={showPassword ? "text" : "password"}
                   placeholder="Repita a nova senha"
+                  readOnly={!isEditing}
                 />
               </div>
             </div>
@@ -191,38 +285,104 @@ export default function Profile() {
             <div className="profile__grid">
               <div className="field">
                 <label className="label">CEP</label>
-                <input className="input" type="text" value={form.cep} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="cep"
+                  value={form.cep}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">País</label>
-                <input className="input" type="text" value={form.country} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="country"
+                  value={form.country}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">Estado</label>
-                <input className="input" type="text" value={form.state} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="state"
+                  value={form.state}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">Cidade</label>
-                <input className="input" type="text" value={form.city} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="city"
+                  value={form.city}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">Bairro</label>
-                <input className="input" type="text" value={form.district} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="district"
+                  value={form.district}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">Logradouro</label>
-                <input className="input" type="text" value={form.street} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="street"
+                  value={form.street}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">Complemento</label>
-                <input className="input" type="text" value={form.complement} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="complement"
+                  value={form.complement}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
               <div className="field">
                 <label className="label">Número</label>
-                <input className="input" type="text" value={form.number} readOnly />
+                <input
+                  className="input"
+                  type="text"
+                  name="number"
+                  value={form.number}
+                  onChange={onChange}
+                  readOnly={!isEditing}
+                />
               </div>
             </div>
           </section>
+
+          {/* Mensagens */}
+          {msg && (
+            <p
+              aria-live="polite"
+              style={{ marginTop: 8, color: msg.includes("sucesso") ? "#16a34a" : "#dc2626" }}
+            >
+              {msg}
+            </p>
+          )}
 
           {/* Ações */}
           <div className="profile__actions">
@@ -230,7 +390,46 @@ export default function Profile() {
               <span className="profile__trash" aria-hidden></span>
               DELETAR CONTA
             </button>
-            <button type="button" className="btn-primary">EDITAR INFORMAÇÕES</button>
+
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleEdit}
+              disabled={isEditing}
+            >
+              EDITAR INFORMAÇÕES
+            </button>
+
+            {isEditing && (
+              <>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleSave}
+                  disabled={saving}
+                  style={{ marginLeft: 8 }}
+                >
+                  {saving ? "Salvando..." : "Salvar"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  style={{
+                    marginLeft: 8,
+                    padding: "10px 16px",
+                    border: "1px solid #9aa3af",
+                    background: "transparent",
+                    color: "#374151",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                  }}
+                  aria-label="Cancelar edição"
+                >
+                  Cancelar
+                </button>
+              </>
+            )}
           </div>
         </div>
       </main>

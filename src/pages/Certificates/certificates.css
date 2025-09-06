@@ -161,11 +161,173 @@
 
 /* Labels internas do modal de certificado */
 .certModal__right .label {
-  font-size: 0.85rem;   /* menor que o padrão */
-  font-weight: 600;     /* menos pesada que 700 */
-  color: #374151;       /* um cinza mais suave */
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
 }
 .certModal__right .u-optional {
-  font-size: 0.75rem;   /* ainda menor para o (opcional) */
+  font-size: 0.75rem;
   font-weight: 500;
+}
+
+/* =========================
+   CARDS de certificados (imagem, PDF, caption)
+========================= */
+.cert__card{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  padding: 12px;
+  transition: box-shadow .15s ease, transform .08s ease, border-color .15s ease;
+}
+.cert__card:hover{
+  border-color:#d1d5db;
+  box-shadow: 0 8px 22px rgba(0,0,0,.08);
+  transform: translateY(-1px);
+}
+
+.cert__figure{ display:flex; flex-direction:column; gap:.5rem; }
+.cert__image{
+  width:100%;
+  height:220px;
+  object-fit:cover;
+  border-radius:12px;
+  background:#f8fafc;
+}
+
+.cert__pdfThumb{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:220px;
+  border-radius:12px;
+  border:1px dashed #cbd5e1;
+  background:#f8fafc;
+  color:#475569;
+  font-weight:700;
+  text-decoration:none;
+}
+
+.cert__placeholder{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:220px;
+  border-radius:12px;
+  border:1px dashed #e5e7eb;
+  background:#f8fafc;
+  color:#94a3b8;
+  font-size:42px;
+}
+
+.cert__caption{ margin-top:4px; }
+.cert__name{
+  margin:0 0 2px;
+  font-weight:800;
+  color:#111827;
+  font-size:1rem;
+}
+.cert__meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px 8px;
+  font-size:.9rem;
+  color:#6b7280;
+}
+.cert__meta b{ color:#374151; }
+
+/* Estados de carregamento/vazio */
+.cert__skeleton,
+.cert__empty{
+  display:flex; align-items:center; justify-content:center;
+  min-height: 120px;
+  border:1px dashed #e5e7eb;
+  border-radius:12px;
+  color:#6b7280;
+  background:#fff;
+}
+/* Card clicável */
+.cert__card--clickable { cursor: pointer; }
+
+/* ===== Modal de Visualização ===== */
+.certView{
+  width: min(900px, 94vw);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 15px 40px rgba(0,0,0,.25);
+  overflow: hidden;
+}
+
+.certView__actions{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.certView__delete{
+  width: 36px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid #fee2e2;
+  background: #fff;
+  color: #ef4444;
+  font-size: 16px;
+  cursor: pointer;
+}
+.certView__delete:hover{
+  background: #fef2f2;
+}
+
+.certView__body{
+  padding: 16px 20px 10px;
+}
+
+.certView__imageBox{
+  display: grid;
+  place-items: center;
+  background: #f8fafc;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.certView__image{
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+/* PDF maior no modal de visualização */
+.cert__pdfThumb--big{
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 420px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #1f2937;
+  background: #fff;
+  font-weight: 700;
+}
+
+/* Grid com os campos */
+.certView__infoGrid{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 840px){
+  .certView__infoGrid{ grid-template-columns: 1fr; }
+}
+
+.certView__infoGrid .field .label{
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 4px;
+  display: block;
+}
+.certView__infoGrid .read{
+  font-weight: 600;
+  color: #111827;
+  white-space: pre-wrap;
 }
