@@ -1,7 +1,7 @@
 import React, { useContext, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import "./RegisterForm2.css";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import api from "../../api/client";
 
 import Arrow from "../../assets/icons/arrow-icon-blue.svg";
@@ -37,7 +37,6 @@ const RegistrationForm = () => {
   } = useForm();
 
   const onSubmit = (data) => {
-    console.log(data);
     api.post("/api/users", {
       firstName: firstName,
       lastName: lastName,
@@ -56,11 +55,12 @@ const RegistrationForm = () => {
       withCredentials: true
     })
       .then((res) => {
-        console.log(res.data)
+        Navigate("/login");
       })
       .catch((err) => {
-        console.log(err.response.data.message)
+        console.log(err.response?.data?.message)
       });
+
   }
   return (
     <div>
