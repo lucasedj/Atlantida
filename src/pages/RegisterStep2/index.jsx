@@ -36,6 +36,8 @@ const RegistrationForm = () => {
     formState: { errors },
   } = useForm();
 
+  const navigate = useNavigate();
+
   const onSubmit = (data) => {
     api.post("/api/users", {
       firstName: firstName,
@@ -55,7 +57,7 @@ const RegistrationForm = () => {
       withCredentials: true
     })
       .then((res) => {
-        Navigate("/login");
+        navigate("/login");
       })
       .catch((err) => {
         console.log(err.response?.data?.message)

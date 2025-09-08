@@ -39,8 +39,34 @@ label {
   font-size: 16px;
   font-family: "Inter", sans-serif;
   font-weight: 500;
-
   margin-bottom: 8px;
+  display: block; /* garante que fique acima do input */
+}
+
+/* NOVA REGRA para o container do label "Senha" + link */
+.passwordLabelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;  /* alinha topo do label e link */
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--dark-blue-title-font);
+}
+
+.passwordLabelRow label {
+  font-size: 16px;
+}
+
+.passwordLabelRow a {
+  font-size: 14px;
+  color: var(--primary);
+  text-decoration: none;
+  white-space: nowrap; /* evita quebra de linha no link */
+}
+
+/* Se quiser efeito hover no link */
+.passwordLabelRow a:hover {
+  text-decoration: underline;
 }
 
 .description {
@@ -50,23 +76,15 @@ label {
   margin-bottom: 20px;
 }
 
-.label_password {
-  display: flex;
-  justify-content: space-between;
-}
-
-.label_password a {
-  text-decoration: none;
-}
-
 .input {
   padding: 15px;
   border-radius: 5px;
   border: 1px solid var(--border-input);
   outline: none;
-
   font-size: 14px;
   margin-bottom: 15px;
+  width: 100%; /* para inputs ocuparem toda largura disponível */
+  box-sizing: border-box; /* padding não expande o tamanho */
 }
 
 .btn_login {
@@ -74,14 +92,14 @@ label {
   border-radius: 5px;
   border: none;
   background-color: var(--primary);
-
   color: var(--white);
   font-size: 16px;
   font-weight: 600;
-
   margin-top: 15px;
   margin-bottom: 30px;
   transition: 0.2s;
+  width: 100%; /* botão com mesma largura dos inputs */
+  box-sizing: border-box;
 }
 
 .btn-send-link {
@@ -89,11 +107,9 @@ label {
   border-radius: 5px;
   border: none;
   background-color: var(--primary);
-
   color: var(--white);
   font-size: 16px;
   font-weight: 600;
-
   margin-top: 15px;
   transition: 0.2s;
 }
@@ -103,18 +119,14 @@ label {
   justify-content: center;
   align-items: center;
   gap: 10px;
-
   padding: 15px;
   border-radius: 5px;
   border: 1px solid var(--primary);
-
   text-decoration: none;
   text-align: center;
-
   color: var(--primary);
   font-size: 16px;
   font-weight: 600;
-
   margin-top: 15px;
   transition: 0.2s;
 }
@@ -122,7 +134,6 @@ label {
 .btn-back-login:hover {
   cursor: pointer;
   transition: 0.2s;
-
   color: var(--white);
   background-color: var(--primary);
 }

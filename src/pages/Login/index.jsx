@@ -17,8 +17,8 @@ function Login() {
     setErr("");
     setLoading(true);
     try {
-      const user = await login(email, password);             
-      navigate("/logged", { state: { user } });               
+      const user = await login(email, password);
+      navigate("/logged", { state: { user } });
     } catch (error) {
       setErr(error?.message || "Erro ao fazer login");
     } finally {
@@ -39,8 +39,8 @@ function Login() {
 
         <h1 className={styles.title}>Faça seu login</h1>
 
-        <form onSubmit={handleSubmit}>
-          <label htmlFor="email">Email</label>
+        <form onSubmit={handleSubmit} className={styles.form}>
+          <label htmlFor="email">E-mail</label>
           <input
             className={styles.input}
             type="email"
@@ -52,9 +52,10 @@ function Login() {
             required
           />
 
-          <label htmlFor="password" className={styles.label_password}>
-            Senha <Link to="/forgotpassword"> esqueceu a senha? </Link>
-          </label>
+          <div className={styles.passwordLabelRow}>
+            <label htmlFor="password">Senha</label>
+            <Link to="/forgotpassword">esqueceu a senha?</Link>
+          </div>
           <input
             className={styles.input}
             type="password"
