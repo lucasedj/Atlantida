@@ -1,7 +1,9 @@
-import React, { memo, useEffect, useState } from "react";
+// src/pages/Logged/index.jsx
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import "./logged.css";
 import { getCurrentUser, me, logout } from "../../features/auth/authService";
+import { apiFetch } from "../../services/api";
 
 /* ---------------------------
  * Itens reutilizáveis
@@ -106,6 +108,55 @@ function PlacesCard() {
 }
 
 function DivesTable() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 5;
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setErr("");
+        const data = await apiFetch("/api/diveLogs", { auth: true });
+        if (!active) return;
+        const arr = Array.isArray(data) ? data : [];
+        // ordena por data desc (quando existir)
+        arr.sort((a, b) => {
+          const da = new Date(a?.date || 0).getTime();
+          const db = new Date(b?.date || 0).getTime();
+          return db - da;
+        });
+        setLogs(arr);
+      } catch (e) {
+        if (active) setErr(e?.message || "Falha ao carregar mergulhos.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const start = (pageSafe - 1) * PAGE_SIZE;
+  const rows = logs.slice(start, start + PAGE_SIZE);
+
+  const fmtDate = (v) => {
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+    // se quiser: d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' })
+  };
+
+  const getSpotName = (log) => {
+    const ds = log?.divingSpotId;
+    if (ds && typeof ds === "object" && (ds.name || ds.title)) return ds.name || ds.title;
+    // se o backend não popular, não temos nome aqui
+    return "—";
+  };
+
   return (
     <section className="dives" aria-labelledby="dives-title">
       <SectionTitle>
@@ -120,19 +171,62 @@ function DivesTable() {
           <div role="columnheader" className="u-right">Profundidade atingida</div>
         </div>
 
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div className="table__row" role="row" key={i}>
+        {/* estados: erro, carregando, vazio, ou dados */}
+        {err && (
+          <div className="table__row" role="row">
+            <div role="cell" colSpan={4} style={{ color: "#dc2626" }}>
+              {err}
+            </div>
+          </div>
+        )}
+
+        {loading && !err && Array.from({ length: PAGE_SIZE }).map((_, i) => (
+          <div className="table__row" role="row" key={`sk-${i}`}>
             <div role="cell">—</div>
             <div role="cell">—</div>
             <div role="cell">—</div>
             <div role="cell" className="u-right">—</div>
           </div>
         ))}
+
+        {!loading && !err && rows.length === 0 && (
+          <div className="table__row" role="row">
+            <div role="cell" colSpan={4}>Nenhum mergulho encontrado.</div>
+          </div>
+        )}
+
+        {!loading && !err && rows.map((log) => (
+          <div className="table__row" role="row" key={log._id}>
+            <div role="cell">{log?.title || "—"}</div>
+            <div role="cell">{fmtDate(log?.date)}</div>
+            <div role="cell">{getSpotName(log)}</div>
+            <div role="cell" className="u-right">
+              {log?.depth != null ? `${log.depth} m` : "—"}
+            </div>
+          </div>
+        ))}
       </div>
 
       <nav className="pager" aria-label="Paginação">
-        <button type="button" aria-label="Página anterior">‹</button>
-        <button type="button" aria-label="Próxima página">›</button>
+        <button
+          type="button"
+          aria-label="Página anterior"
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={pageSafe <= 1}
+        >
+          ‹
+        </button>
+        <span aria-live="polite" style={{ margin: "0 8px" }}>
+          {pageSafe} / {totalPages}
+        </span>
+        <button
+          type="button"
+          aria-label="Próxima página"
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={pageSafe >= totalPages}
+        >
+          ›
+        </button>
       </nav>
     </section>
   );

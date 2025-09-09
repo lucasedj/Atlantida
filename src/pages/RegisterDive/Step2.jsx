@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+// src/pages/RegisterDive/Step2.jsx
+import React from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useDraftField, readDiveDraft, writeDiveDraft } from "./useDiveDraft";
 
 import "../Logged/logged.css";
 import "./register-dive.css";
@@ -7,25 +9,25 @@ import "./register-dive.css";
 export default function Step2() {
   const navigate = useNavigate();
 
-  // estado simples só para validação mínima
-  const [depth, setDepth] = useState("");
-  const [bottomTime, setBottomTime] = useState("");
+  // Persistência via hook (mesmo padrão da Step1)
+  // guardamos como string; a conversão p/ número é feita no Step5
+  const [depth, setDepth] = useDraftField("depth", ""); // metros
+  const [bottomTime, setBottomTime] = useDraftField("bottomTimeInMinutes", ""); // minutos
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // validação leve: números válidos e não negativos
+    // validação leve
     const d = Number(depth);
     const t = Number(bottomTime);
-    const okDepth = !Number.isNaN(d) && d >= 0 && d <= 200;   // ajuste o limite se quiser
+    const okDepth = !Number.isNaN(d) && d >= 0 && d <= 200;
     const okTime  = !Number.isNaN(t) && t >= 0 && t <= 600;
+    if (!okDepth || !okTime) return;
 
-    if (!okDepth || !okTime) {
-      // aqui você pode mostrar toasts ou setar estados de erro
-      return;
-    }
+    // marca progresso desta etapa no draft
+    const prev = readDiveDraft() || {};
+    writeDiveDraft({ _stepCompleted: Math.max(prev._stepCompleted || 0, 2) });
 
-    // salve no contexto/store se precisar
     navigate("/logged/registrar-mergulho/Step3");
   };
 
@@ -123,9 +125,7 @@ export default function Step2() {
             <div className="form-grid">
               {/* Profundidade */}
               <div className="field">
-                <label className="label" htmlFor="depth">
-                  Profundidade máxima
-                </label>
+                <label className="label" htmlFor="depth">Profundidade máxima</label>
                 <span className="hint">A que profundidade você chegou? (em metros)</span>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input
@@ -149,9 +149,7 @@ export default function Step2() {
 
               {/* Tempo no fundo */}
               <div className="field">
-                <label className="label" htmlFor="bottomTime">
-                  Tempo no fundo
-                </label>
+                <label className="label" htmlFor="bottomTime">Tempo no fundo</label>
                 <span className="hint">Quanto tempo levou o seu mergulho? (em minutos)</span>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input

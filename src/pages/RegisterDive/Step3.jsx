@@ -1,5 +1,7 @@
-import React, { useState, useCallback } from "react";
+// src/pages/RegisterDive/Step3.jsx
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useDraftField, readDiveDraft, writeDiveDraft } from "./useDiveDraft";
 
 import "../Logged/logged.css";
 import "./register-dive.css";
@@ -7,26 +9,31 @@ import "./register-dive.css";
 export default function Step3() {
   const navigate = useNavigate();
 
-  /* ---------- Estado dos grupos ---------- */
-  // single-select (agora!)
-  const [weather, setWeather]   = useState("");   // condições climáticas
-  const [waves, setWaves]       = useState("");   // ondas
-  const [current, setCurrent]   = useState("");   // correnteza
+  /* ---------- Estado persistido (single-selects e inputs) ---------- */
+  const [weather, setWeather]       = useDraftField("weather", "");
+  const [waves, setWaves]           = useDraftField("waves", "");
+  const [current, setCurrent]       = useDraftField("current", "");
 
-  // multi-select (mantido)
-  const [swell, setSwell]       = useState(new Set()); // ondulação (pode multi)
+  const [waterType, setWaterType]   = useDraftField("waterType", "");
+  const [waterBody, setWaterBody]   = useDraftField("waterBody", "");
+  const [visibility, setVisibility] = useDraftField("visibility", "");
 
-  // single-select (já eram)
-  const [waterType, setWaterType]   = useState("");  // salgada | doce
-  const [waterBody, setWaterBody]   = useState("");  // oceano | lago | pedreira
-  const [visibility, setVisibility] = useState("");  // alto | moderado | baixo
+  // temperaturas (guardamos como string; Step5 converte para número)
+  const [tAir, setTAir]         = useDraftField("tAir", "");
+  const [tSurface, setTSurface] = useDraftField("tSurface", "");
+  const [tBottom, setTBottom]   = useDraftField("tBottom", "");
 
-  // temperaturas
-  const [tAir, setTAir]         = useState("");
-  const [tSurface, setTSurface] = useState("");
-  const [tBottom, setTBottom]   = useState("");
+  /* ---------- Ondulação (multi) com Set + persistência ---------- */
+  const [swell, setSwell] = useState(new Set());
+  useEffect(() => {
+    const d = readDiveDraft() || {};
+    if (Array.isArray(d.swell)) setSwell(new Set(d.swell));
+  }, []);
+  useEffect(() => {
+    writeDiveDraft({ swell: Array.from(swell) });
+  }, [swell]);
 
-  /* ---------- Helpers ---------- */
+  /* ---------- Helpers UI ---------- */
   const selectOne = useCallback((value, setFn) => setFn(value), []);
   const toggleInSet = useCallback((value, setFn) => {
     setFn(prev => {
@@ -58,8 +65,14 @@ export default function Step3() {
     </NavLink>
   );
 
+  /* ---------- Submit ---------- */
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // marca progresso desta etapa no draft
+    const prev = readDiveDraft() || {};
+    writeDiveDraft({ _stepCompleted: Math.max(prev._stepCompleted || 0, 3) });
+
     navigate("/logged/registrar-mergulho/Step4");
   };
 
@@ -142,16 +155,31 @@ export default function Step3() {
 
               <div className="form-grid" style={{ marginTop: 6 }}>
                 <div className="field">
-                  <input type="number" className="input" placeholder="Temperatura do Ar"
-                         value={tAir} onChange={(e) => setTAir(e.target.value)} />
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="Temperatura do Ar"
+                    value={tAir}
+                    onChange={(e) => setTAir(e.target.value)}
+                  />
                 </div>
                 <div className="field">
-                  <input type="number" className="input" placeholder="Temperatura na Superfície"
-                         value={tSurface} onChange={(e) => setTSurface(e.target.value)} />
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="Temperatura na Superfície"
+                    value={tSurface}
+                    onChange={(e) => setTSurface(e.target.value)}
+                  />
                 </div>
                 <div className="field">
-                  <input type="number" className="input" placeholder="Temperatura no Fundo"
-                         value={tBottom} onChange={(e) => setTBottom(e.target.value)} />
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="Temperatura no Fundo"
+                    value={tBottom}
+                    onChange={(e) => setTBottom(e.target.value)}
+                  />
                 </div>
               </div>
             </div>
@@ -195,7 +223,7 @@ export default function Step3() {
               </div>
             </div>
 
-            {/* Ondas (single agora) */}
+            {/* Ondas (single) */}
             <div className="field" style={{ marginTop: 12 }}>
               <label className="label">Ondas</label>
               <span className="hint">Como estavam as ondas?</span>
@@ -208,7 +236,7 @@ export default function Step3() {
               </div>
             </div>
 
-            {/* Correnteza (single agora) */}
+            {/* Correnteza (single) */}
             <div className="field" style={{ marginTop: 12 }}>
               <label className="label">Correnteza</label>
               <span className="hint">Como estava a correnteza?</span>
@@ -221,13 +249,17 @@ export default function Step3() {
               </div>
             </div>
 
-            {/* Ondulação (continua multi) */}
+            {/* Ondulação (multi) */}
             <div className="field" style={{ marginTop: 12 }}>
               <label className="label">Ondulação</label>
-              <span className="hint">Como estava a ondulação?</span>
+              <span className="hint">Como estava a ondulação? (pode marcar mais de um)</span>
               <div className="segmented" style={{ flexWrap: "wrap", rowGap: 8 }}>
                 {["Nenhum","Leve","Médio","Forte"].map(v => (
-                  <SegBtn key={v} active={current === v} onClick={() => selectOne(v, setCurrent)}>
+                  <SegBtn
+                    key={v}
+                    active={swell.has(v)}
+                    onClick={() => toggleInSet(v, setSwell)}
+                  >
                     {v}
                   </SegBtn>
                 ))}

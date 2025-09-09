@@ -1,32 +1,36 @@
 // src/pages/RegisterDive/Step4.jsx
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useDraftField, readDiveDraft, writeDiveDraft } from "./useDiveDraft";
 
-/* Reaproveita o CSS da sidebar */
 import "../Logged/logged.css";
-/* CSS compartilhado do fluxo de registro */
 import "./register-dive.css";
 
 export default function Step4() {
   const navigate = useNavigate();
 
-  /* ---------- Estado dos campos ---------- */
-  // Seleções single
-  const [suit, setSuit] = useState("");                 // Roupa
-  const [cylMaterial, setCylMaterial] = useState("");   // Aço | Alumínio | Outros
-  const [gasMix, setGasMix] = useState("");             // AR | EANx32 | ...
+  /* ---------- Estado persistido (single/select + inputs) ---------- */
+  const [suit, setSuit]             = useDraftField("suit", "");
+  const [cylMaterial, setCylMaterial] = useDraftField("cylMaterial", "");
+  const [gasMix, setGasMix]         = useDraftField("gasMix", "");
 
-  // Multi-select
-  const [extras, setExtras] = useState(new Set());      // Capuz | Luvas | Botas
+  const [ballast, setBallast]       = useDraftField("ballast", "");
+  const [cylSize, setCylSize]       = useDraftField("cylSize", "");
+  const [pIni, setPIni]             = useDraftField("pIni", "");
+  const [pFim, setPFim]             = useDraftField("pFim", "");
+  const [extrasOther, setExtrasOther] = useDraftField("extrasOther", "");
 
-  // Inputs
-  const [ballast, setBallast] = useState("");           // lastro
-  const [cylSize, setCylSize] = useState("");           // tamanho do cilindro
-  const [pIni, setPIni] = useState("");                 // pressão inicial (bar)
-  const [pFim, setPFim] = useState("");                 // pressão final (bar)
-  const [extrasOther, setExtrasOther] = useState("");
+  /* ---------- Equipamentos adicionais (multi) com Set + persistência ---------- */
+  const [extras, setExtras] = useState(new Set());
+  useEffect(() => {
+    const d = readDiveDraft() || {};
+    if (Array.isArray(d.extras)) setExtras(new Set(d.extras));
+  }, []);
+  useEffect(() => {
+    writeDiveDraft({ extras: Array.from(extras) });
+  }, [extras]);
 
-  /* ---------- Helpers de seleção ---------- */
+  /* ---------- Helpers ---------- */
   const selectOne = useCallback((value, setter) => setter(value), []);
   const toggleInSet = useCallback((value, setter) => {
     setter(prev => {
@@ -62,21 +66,17 @@ export default function Step4() {
   const qUsed = useMemo(() => {
     const ini = Number(pIni);
     const fim = Number(pFim);
-    if (
-      Number.isFinite(ini) &&
-      Number.isFinite(fim) &&
-      ini > 0 &&
-      fim >= 0 &&
-      ini >= fim
-    ) {
+    if (Number.isFinite(ini) && Number.isFinite(fim) && ini > 0 && fim >= 0 && ini >= fim) {
       return `${ini - fim} bar`;
     }
     return "";
   }, [pIni, pFim]);
 
+  /* ---------- Submit ---------- */
   const handleNext = (e) => {
     e.preventDefault();
-    // salvar em contexto/store se necessário
+    const prev = readDiveDraft() || {};
+    writeDiveDraft({ _stepCompleted: Math.max(prev._stepCompleted || 0, 4) });
     navigate("/logged/registrar-mergulho/Step5");
   };
 

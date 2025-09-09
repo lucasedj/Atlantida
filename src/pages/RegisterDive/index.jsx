@@ -1,16 +1,31 @@
+// src/pages/RegisterDive/index.jsx
 import React, { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useDraftField } from "./useDiveDraft";
 
 import "../Logged/logged.css";
 import "./register-dive.css";
 
 export default function RegisterDive() {
   const navigate = useNavigate();
-  const [diveType, setDiveType] = useState("costa"); // 'costa' | 'barco' | 'outros'
+
+  // campos persistentes da etapa 1
+  const [title, setTitle]       = useDraftField("title", "");
+  const [place, setPlace]       = useDraftField("place", "");
+  const [date, setDate]         = useDraftField("date", "");      // yyyy-mm-dd
+  const [diveType, setDiveType] = useDraftField("diveType", "costa"); // 'costa' | 'barco' | 'outros'
+
+  // erro local do formulário (não persiste)
+  const [formErr, setFormErr] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // aqui você pode validar/salvar no contexto se quiser
+
+    if (!title.trim() || !place.trim() || !date) {
+      setFormErr("Preencha Título, Local e Data para continuar.");
+      return;
+    }
+    setFormErr("");
     navigate("/logged/registrar-mergulho/Step2");
   };
 
@@ -18,9 +33,7 @@ export default function RegisterDive() {
     <NavLink
       end={end}
       to={to}
-      className={({ isActive }) =>
-        `logged__item${isActive ? " active" : ""}`
-      }
+      className={({ isActive }) => `logged__item${isActive ? " active" : ""}`}
     >
       <img src={icon} alt="" aria-hidden className="logged__icon" />
       <span>{label}</span>
@@ -47,20 +60,16 @@ export default function RegisterDive() {
           {menuLink({ to: "/logged/perfil", icon: "/images/mini-icon/perfil.png", label: "Perfil do usuário" })}
         </nav>
 
-        {/* Card registrar mergulho */}
         <div className="logged__card" aria-label="Atalho para registrar mergulho">
           <div className="logged__cardMedia">
             <img src="/images/logo-mergulho.png" alt="" aria-hidden />
           </div>
           <Link to="/logged/registrar-mergulho" className="logged__primaryBtn">
-            <span className="logged__plus" aria-hidden>
-              ＋
-            </span>
+            <span className="logged__plus" aria-hidden>＋</span>
             Registrar mergulho
           </Link>
         </div>
 
-        {/* Logout */}
         <Link to="/login" className="logged__logout">
           <img src="/images/mini-icon/Sair.png" alt="" aria-hidden className="logged__icon" />
           <span>Sair do sistema</span>
@@ -111,9 +120,7 @@ export default function RegisterDive() {
 
             <div className="form-grid">
               <div className="field">
-                <label className="label" htmlFor="titulo">
-                  Título do Mergulho
-                </label>
+                <label className="label" htmlFor="titulo">Título do Mergulho</label>
                 <span className="hint">Que nome você quer dar para seu mergulho?</span>
                 <input
                   id="titulo"
@@ -123,13 +130,13 @@ export default function RegisterDive() {
                   placeholder="Ex.: Batismo em Arraial"
                   autoComplete="off"
                   required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                 />
               </div>
 
               <div className="field">
-                <label className="label" htmlFor="local">
-                  Local de Mergulho
-                </label>
+                <label className="label" htmlFor="local">Local de Mergulho</label>
                 <span className="hint">Onde você mergulhou?</span>
                 <input
                   id="local"
@@ -139,60 +146,51 @@ export default function RegisterDive() {
                   placeholder="Cidade / Ponto"
                   autoComplete="off"
                   required
+                  value={place}
+                  onChange={(e) => setPlace(e.target.value)}
                 />
               </div>
 
               <div className="field">
-                <label className="label" htmlFor="data">
-                  Data
-                </label>
+                <label className="label" htmlFor="data">Data</label>
                 <span className="hint">Qual foi a data do seu mergulho?</span>
-                {/* se preferir, use type="date". Mantive uma fallback cross-browser bonita. */}
                 <input
                   id="data"
                   name="data"
                   type="date"
                   className="input"
-                  placeholder="DD/MM/AAAA"
                   required
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
                 />
               </div>
 
               <div className="field" role="group" aria-labelledby="tipoLabel">
-                <label className="label" id="tipoLabel">
-                  Tipo de Mergulho
-                </label>
+                <label className="label" id="tipoLabel">Tipo de Mergulho</label>
                 <span className="hint">Como você entrou na água?</span>
                 <div className="segmented" aria-label="Escolha do tipo">
-                  <button
-                    type="button"
-                    className={`segmented__btn ${diveType === "costa" ? "is-selected" : ""}`}
-                    aria-pressed={diveType === "costa"}
-                    onClick={() => setDiveType("costa")}
-                  >
-                    Na costa
-                  </button>
-                  <button
-                    type="button"
-                    className={`segmented__btn ${diveType === "barco" ? "is-selected" : ""}`}
-                    aria-pressed={diveType === "barco"}
-                    onClick={() => setDiveType("barco")}
-                  >
-                    Barco
-                  </button>
-                  <button
-                    type="button"
-                    className={`segmented__btn ${diveType === "outros" ? "is-selected" : ""}`}
-                    aria-pressed={diveType === "outros"}
-                    onClick={() => setDiveType("outros")}
-                  >
-                    Outros
-                  </button>
+                  {["costa","barco","outros"].map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      className={`segmented__btn ${diveType === opt ? "is-selected" : ""}`}
+                      aria-pressed={diveType === opt}
+                      onClick={() => setDiveType(opt)}
+                    >
+                      {opt === "costa" ? "Na costa" : opt === "barco" ? "Barco" : "Outros"}
+                    </button>
+                  ))}
                 </div>
-                {/* campo oculto para enviar o valor escolhido, se futuramente usar submit real */}
                 <input type="hidden" name="tipoMergulho" value={diveType} />
               </div>
             </div>
+
+            {/* Erro do formulário (se houver) */}
+            {formErr && (
+              <p style={{ color: "#dc2626", marginTop: 8 }} role="alert" aria-live="assertive">
+                {formErr}
+              </p>
+            )}
 
             {/* Ações */}
             <div className="form-actions">

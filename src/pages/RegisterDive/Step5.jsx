@@ -1,6 +1,7 @@
 // src/pages/RegisterDive/Step5.jsx
 import React, { useState, useMemo, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { apiFetch } from "../../services/api";
 
 import "../Logged/logged.css";
 import "./register-dive.css";
@@ -25,14 +26,20 @@ function PublicImg({ candidates, alt = "", className = "", style }) {
 export default function Step5() {
   const navigate = useNavigate();
 
+  // avaliação desta etapa (persistida em draft)
   const [rating, setRating] = useState(0);
   const [difficulty, setDifficulty] = useState("");
-  const [files, setFiles] = useState([]); // {file, url}
+  const [comment, setComment] = useState("");
+
+  // fotos desta etapa (não persistimos arquivos no localStorage)
+  const [files, setFiles] = useState([]); // [{file, url}]
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState("");
 
   const BASE = import.meta.env.BASE_URL || "/";
   const withBase = (p) => `${BASE}${p}`;
 
-  // Ícone do upload — deixe o arquivo em public/images/mini-icon/Upload.png
+  // Ícone do upload
   const uploadCandidates = useMemo(
     () => [
       withBase("images/mini-icon/Upload.png"),
@@ -56,26 +63,57 @@ export default function Step5() {
     </NavLink>
   );
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // aqui você enviaria os dados e as fotos
-    navigate("/logged");
+  // ========== Draft helpers ==========
+  const DRAFT_KEY = "diveDraft";
+  const loadDraft = () => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+  const saveDraft = (patch) => {
+    const prev = loadDraft() || {};
+    const next = { ...prev, ...patch };
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+    } catch {}
+    return next;
+  };
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {}
   };
 
-  /** Ao escolher arquivos, gera URLs de preview */
+  // hidrata rating/difficulty/comment do draft
+  useEffect(() => {
+    const d = loadDraft();
+    if (!d) return;
+    if (typeof d.rating === "number") setRating(d.rating);
+    if (d.difficulty) setDifficulty(d.difficulty);
+    if (d.comment != null) setComment(String(d.comment));
+  }, []);
+
+  // autosave desses 3 campos
+  useEffect(() => {
+    saveDraft({ rating, difficulty, comment });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rating, difficulty, comment]);
+
+  // arquivos -> previews (não persistimos em draft por serem File/Blob)
   const handleFiles = (fileList) => {
     const arr = Array.from(fileList || []);
     const next = arr.map((f) => ({ file: f, url: URL.createObjectURL(f) }));
     setFiles((prev) => [...prev, ...next]);
   };
-
   const onInputChange = (e) => handleFiles(e.target.files);
   const onDrop = (e) => {
     e.preventDefault();
     handleFiles(e.dataTransfer.files);
   };
   const onDragOver = (e) => e.preventDefault();
-
   const removeFile = (idx) => {
     setFiles((prev) => {
       URL.revokeObjectURL(prev[idx]?.url);
@@ -85,13 +123,183 @@ export default function Step5() {
     });
   };
 
-  // Limpa URLs quando sair da página
   useEffect(() => {
     return () => {
       files.forEach((f) => URL.revokeObjectURL(f.url));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Converte Files -> [{data, contentType}]
+  const filesToBase64 = async (fileObjs) => {
+    const read = (file) =>
+      new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => {
+          const result = String(fr.result || "");
+          const match = result.match(/^data:(.+?);base64,(.*)$/);
+          if (match) {
+            resolve({ contentType: match[1], data: match[2] });
+          } else {
+            resolve({
+              contentType: file.type || "application/octet-stream",
+              data: result,
+            });
+          }
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+
+    return Promise.all(fileObjs.map(read));
+  };
+
+  // normaliza string para minúsculas sem acentos
+  const norm = (s) =>
+    (s ?? "")
+      .toString()
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+
+  // ========== SUBMIT ==========
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMsg("");
+    setSubmitting(true);
+
+    try {
+      const d = loadDraft() || {};
+
+      const toNum = (v) =>
+        v === "" || v == null || Number.isNaN(Number(v))
+          ? undefined
+          : Number(v);
+      const toArr = (v) =>
+        Array.isArray(v) ? v : v instanceof Set ? Array.from(v) : v ? [v] : [];
+
+      // Geral (vindos das etapas anteriores)
+      const title = d.title || d.titulo || "";
+      const placeStr = d.place || d.location || d.local || ""; // texto digitado na etapa 1
+      const date = d.date || d.data || ""; // yyyy-mm-dd
+      const type = d.diveType || d.tipoMergulho || "";
+
+      // Se você já tiver salvo um ID do ponto:
+      const divingSpotId = d.divingSpotId || undefined;
+
+      // Profundidade/tempo
+      const depth = toNum(d.depth ?? d.maxDepth);
+      const bottomTimeInMinutes = toNum(
+        d.bottomTimeInMinutes ?? d.bottomTime ?? d.timeBottom
+      );
+
+      // Ambientais
+      const weatherConditions = d.weather;
+      const temperature = {
+        air: toNum(d.tAir),
+        surface: toNum(d.tSurface),
+        bottom: toNum(d.tBottom),
+      };
+      const waterType = d.waterType;
+      // const waterBody = d.waterBody; // opcional
+      const visibility = d.visibility;
+      const waves = d.waves;
+      const current = d.current;
+      const surge = Array.isArray(d.swell) ? d.swell.join(", ") : d.swell;
+
+      // Equipamentos
+      const suit = d.suit;
+      const weight = d.ballast;
+
+      const additionalEquipment = (() => {
+        const base = toArr(d.extras);
+        if (d.extrasOther && String(d.extrasOther).trim())
+          base.push(String(d.extrasOther).trim());
+        return base;
+      })();
+
+      const cylinder = {
+        type: d.cylMaterial,
+        size: toNum(d.cylSize),
+        gasMixture: d.gasMix,
+        initialPressure: toNum(d.pIni),
+        finalPressure: toNum(d.pFim),
+      };
+      if (
+        cylinder.initialPressure != null &&
+        cylinder.finalPressure != null &&
+        cylinder.initialPressure >= cylinder.finalPressure
+      ) {
+        cylinder.usedAmount = cylinder.initialPressure - cylinder.finalPressure;
+      }
+
+      // Etapa 5 (atuais)
+      const ratingNum = rating || undefined;
+      const diffMap = { pequena: 1, media: 3, grande: 5 }; // sem duplicidade
+      const difficultyNum = diffMap[norm(difficulty)];
+      const notes = comment?.trim() || undefined;
+
+      // Validação dos obrigatórios
+      const missing = [];
+      if (!title.trim()) missing.push("Título");
+      if (!(divingSpotId || placeStr.trim())) missing.push("Local");
+      if (!date) missing.push("Data");
+      if (!type) missing.push("Tipo");
+      if (depth === undefined) missing.push("Profundidade");
+      if (bottomTimeInMinutes === undefined) missing.push("Tempo no fundo");
+
+      if (missing.length) {
+        setMsg(`Preencha: ${missing.join(", ")}.`);
+        setSubmitting(false);
+        return;
+      }
+
+      // Fotos
+      const photos = await filesToBase64(files.map((f) => f.file)); // [{data, contentType}]
+
+      // Monta payload conforme o model
+      const payload = {
+        title,
+        date,
+        type,
+        depth,
+        bottomTimeInMinutes,
+        waterType,
+        // waterBody,
+        weatherConditions,
+        temperature,
+        visibility,
+        waves,
+        current,
+        surge,
+        suit,
+        weight,
+        additionalEquipment,
+        cylinder,
+        rating: ratingNum,
+        difficulty: difficultyNum,
+        notes,
+        photos,
+        ...(divingSpotId ? { divingSpotId } : { place: placeStr }), // <- usa 'place' se não houver ID
+      };
+
+      // Envia como JSON para /api/diveLogs (com Bearer automático via apiFetch)
+      await apiFetch("/api/diveLogs", {
+        method: "POST",
+        auth: true,
+        body: payload,
+      });
+
+      clearDraft();
+      setMsg("Mergulho registrado com sucesso!");
+      navigate("/logged");
+    } catch (error) {
+      setMsg(error?.message || "Não foi possível registrar o mergulho.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="logged">
@@ -151,41 +359,48 @@ export default function Step5() {
           <div className="steps__progress is-5" aria-hidden="true" />
           <p className="register__stage">Etapa 5 de 5</p>
 
+          {/* Mensagem */}
+          {msg && (
+            <p aria-live="polite" style={{ marginBottom: 12, color: msg.includes("sucesso") ? "#16a34a" : "#dc2626" }}>
+              {msg}
+            </p>
+          )}
+
           {/* ===== Form ===== */}
           <form className="card form" onSubmit={handleSubmit} noValidate>
             <h2 className="form__title">Experiência e Observações</h2>
 
             {/* Opinião */}
-        <div className="field">
-        <span className="label">Opinião</span>
-        <span className="hint">Dê uma nota para esse local</span>
-        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-            {[1, 2, 3, 4, 5].map((i) => {
-            const filled = i <= rating;
-            return (
-                <button
-                key={i}
-                type="button"
-                aria-label={`${i} estrela${i > 1 ? "s" : ""}`}
-                aria-pressed={filled}
-                onClick={() => setRating(i)}
-                className="segmented__btn"
-                style={{
-                    width: 40,
-                    height: 36,
-                    padding: 0,
-                    fontSize: 22,
-                    lineHeight: 1,
-                    color: filled ? "gold" : "#9ca3af", // ⭐ amarelo se selecionado, cinza se não
-                }}
-                title={`${i} / 5`}
-                >
-                {filled ? "★" : "☆"}
-                </button>
-            );
-            })}
-        </div>
-        </div>
+            <div className="field">
+              <span className="label">Opinião</span>
+              <span className="hint">Dê uma nota para esse local</span>
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                {[1, 2, 3, 4, 5].map((i) => {
+                  const filled = i <= rating;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={`${i} estrela${i > 1 ? "s" : ""}`}
+                      aria-pressed={filled}
+                      onClick={() => setRating(i)}
+                      className="segmented__btn"
+                      style={{
+                        width: 40,
+                        height: 36,
+                        padding: 0,
+                        fontSize: 22,
+                        lineHeight: 1,
+                        color: filled ? "gold" : "#9ca3af",
+                      }}
+                      title={`${i} / 5`}
+                    >
+                      {filled ? "★" : "☆"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Dificuldade */}
             <div className="field" style={{ marginTop: 12 }}>
@@ -214,16 +429,17 @@ export default function Step5() {
                 id="comentario"
                 className="input"
                 placeholder="Insira sua avaliação aqui"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
                 style={{ height: 180, paddingTop: 10, paddingBottom: 10, resize: "vertical" }}
               />
             </div>
 
-            {/* Fotos (dropzone clicável + preview) */}
+            {/* Fotos */}
             <div className="field" style={{ marginTop: 12 }}>
               <label className="label">Fotos</label>
               <span className="hint">O que você viu durante seu mergulho?</span>
 
-              {/* Input hidden para clicar na área */}
               <input
                 id="photosInput"
                 type="file"
@@ -233,7 +449,6 @@ export default function Step5() {
                 onChange={onInputChange}
               />
 
-              {/* Área clicável e com suporte a arrastar/soltar */}
               <label
                 htmlFor="photosInput"
                 className="dropzone dropzone--clickable"
@@ -263,7 +478,6 @@ export default function Step5() {
                 </div>
               </label>
 
-              {/* Thumbnails */}
               {files.length > 0 && (
                 <div
                   className="thumbs-grid"
@@ -323,8 +537,8 @@ export default function Step5() {
               <Link to="/logged/registrar-mergulho/Step4" className="btn-outline">
                 ETAPA ANTERIOR
               </Link>
-              <button type="submit" className="btn-primary">
-                REGISTRAR MERGULHO
+              <button type="submit" className="btn-primary" disabled={submitting}>
+                {submitting ? "REGISTRANDO..." : "REGISTRAR MERGULHO"}
               </button>
             </div>
           </form>
