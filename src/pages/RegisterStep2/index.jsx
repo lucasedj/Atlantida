@@ -38,6 +38,9 @@ const RegistrationForm = () => {
 
   const navigate = useNavigate();
 
+  //regex
+  const cepRegex = /^\d{5}-\d{3}$/;
+
   const onSubmit = (data) => {
     api.post("/api/users", {
       firstName: firstName,
@@ -116,13 +119,17 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">CEP</label>
             <input
+              {...register("cep", {
+                required: "CEP é obrigatório.",
+                pattern: {
+                  value: /^\d{5}-\d{3}$/,
+                  message: "Formato de CEP inválido. Use o formato 00000-000.",
+                },
+              })}
               value={cep}
               onChange={(e) => {
-                setCep(e.target.value)
-                e.target.setCustomValidity("")
+                setCep(e.target.value);
               }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
               className="input"
               placeholder="00000-000"
             />
@@ -131,15 +138,12 @@ const RegistrationForm = () => {
 
           {/* PAÍS */}
           <div className="form-group">
-            <label className="label">País</label>
             <input
+              {...register("country", {
+                required: "País é obrigatório.",
+              })}
               value={country}
-              onChange={(e) => {
-                setCountry(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
+              onChange={(e) => setCountry(e.target.value)}
               className="input"
               placeholder="Brasil"
             />
@@ -150,13 +154,11 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Estado</label>
             <input
+              {...register("state", {
+                required: "Estado é obrigatório.",
+              })}
               value={state}
-              onChange={(e) => {
-                setState(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
+              onChange={(e) => setState(e.target.value)}
               className="input"
               placeholder="Digite seu estado"
             />
@@ -167,13 +169,11 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Cidade</label>
             <input
+              {...register("city", {
+                required: "Cidade é obrigatória.",
+              })}
               value={city}
-              onChange={(e) => {
-                setCity(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
+              onChange={(e) => setCity(e.target.value)}
               className="input"
               placeholder="Digite sua cidade"
             />
@@ -184,13 +184,11 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Bairro</label>
             <input
+              {...register("district", {
+                required: "Bairro é obrigatório.",
+              })}
               value={district}
-              onChange={(e) => {
-                setDistrict(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
+              onChange={(e) => setDistrict(e.target.value)}
               className="input"
               placeholder="Digite seu bairro"
             />
@@ -201,50 +199,53 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Logradouro</label>
             <input
+              {...register("street", {
+                required: "Logradouro é obrigatório.",
+              })}
               value={street}
-              onChange={(e) => {
-                setStreet(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
+              onChange={(e) => setStreet(e.target.value)}
               className="input"
               placeholder="Digite o logradouro"
             />
             {errors.street && <p className="error">{errors.street.message}</p>}
+
           </div>
 
           {/* NÚMERO */}
           <div className="form-group">
             <label className="label">Número</label>
             <input
+              {...register("number", {
+                required: "Número é obrigatório.",
+              })}
               value={number}
-              onChange={(e) => {
-                setNumber(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
+              onChange={(e) => setNumber(e.target.value)}
               className="input"
               placeholder="Número ou S/N"
             />
             {errors.number && <p className="error">{errors.number.message}</p>}
+
           </div>
 
           {/* COMPLEMENTO */}
           <div className="form-group">
             <label className="label">Complemento (opcional)</label>
             <input
+              {...register("complement", {
+                maxLength: {
+                  value: 100,
+                  message: "Complemento deve ter no máximo 100 caracteres.",
+                },
+                required: false
+              })}
               value={complement}
               onChange={(e) => {
-                setComplement(e.target.value)
-                e.target.setCustomValidity("")
+                setComplement(e.target.value);
               }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
               className="input"
               placeholder="Apartamento, sala, conjunto, andar"
             />
+            {errors.complement && <p className="error">{errors.complement.message}</p>}
           </div>
 
           <button type="submit" className="submit-button">

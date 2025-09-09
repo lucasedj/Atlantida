@@ -105,14 +105,14 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Nome</label>
             <input
+              {...register("firstName", { required: "Nome é obrigatório." })}
               value={firstName}
               onChange={(e) => {
                 setFirstName(e.target.value)
                 e.target.setCustomValidity("")
               }}
-              required
               onInvalid={(e) => e.target.setCustomValidity("")}
-              type=""
+              type="text"
               className="input"
               placeholder="Seu primeiro nome"
             />
@@ -123,12 +123,12 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Sobrenome</label>
             <input
+              {...register("lastName", { required: "Sobrenome é obrigatório." })}
               value={lastName}
               onChange={(e) => {
                 setLastName(e.target.value)
                 e.target.setCustomValidity("")
               }}
-              required
               onInvalid={(e) => e.target.setCustomValidity("")}
               type="text"
               className="input"
@@ -142,11 +142,11 @@ const RegistrationForm = () => {
             <label className="label">Data de nascimento</label>
             <input
               value={dob}
+              {...register("dob", { required: "Data de nascimento é obrigatória." })}
               onChange={(e) => {
                 setDob(e.target.value)
                 e.target.setCustomValidity("")
               }}
-              required
               onInvalid={(e) => e.target.setCustomValidity("")}
               type="date"
               className="input"
@@ -156,23 +156,21 @@ const RegistrationForm = () => {
           </div>
 
           {/* EMAIL */}
-          <div className="form-group">
-            <label className="label">E-mail</label>
-            <input
-              {...register("email", {
-                required: "E-mail é obrigatório.",
-                pattern: {
-                  value: emailRegex,
-                  message:
-                    "Insira um formato de email válido.",
-                },
-              })}
-              type="text"
-              className="input"
-              placeholder="exemplo@seuemail.com"
-            />
-            {errors.email && <p className="error">{errors.email.message}</p>}
-          </div>
+          <input
+            {...register("email", {
+              required: "E-mail é obrigatório.",
+              pattern: {
+                value: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
+                message: "Insira um e-mail válido.",
+              },
+            })}
+            type="text"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="input"
+            placeholder="exemplo@seuemail.com"
+          />
+          {errors.email && <p className="error">{errors.email.message}</p>}
 
           {/* SENHA */}
           <div className="form-group">
@@ -188,9 +186,7 @@ const RegistrationForm = () => {
                 })}
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                }}
+                onChange={(e) => setPassword(e.target.value)}
                 className="input"
                 placeholder="Informe sua senha"
               />
@@ -217,9 +213,7 @@ const RegistrationForm = () => {
                 })}
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
-                onChange={(e) => {
-                  setconfirmPassword(e.target.value);
-                }}
+                onChange={(e) => setconfirmPassword(e.target.value)}
                 className="input"
                 placeholder="Repita sua senha"
               />
