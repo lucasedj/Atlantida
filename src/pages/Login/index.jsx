@@ -4,11 +4,14 @@ import SliderImages from "../../components/SliderImages";
 import logo from "../../assets/illustrations/logo-atlantida.svg";
 import styles from "./Login.module.css";
 import { login } from "../../features/auth/authService";
+import EyeOnIcon from "../../assets/icons/eye-on-icon.svg";
+import EyeOffIcon from "../../assets/icons/eye-off-icon.svg";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -56,17 +59,29 @@ function Login() {
             <label htmlFor="password">Senha</label>
             <Link to="/forgotpassword">esqueceu a senha?</Link>
           </div>
-          <input
-            className={styles.input}
-            type="password"
-            name="password"
-            id="password"
-            placeholder="Digite sua senha"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
 
+          <div className={styles.passwordContainer}>
+            <input
+              className={styles.input}
+              type={showPassword ? "text" : "password"}
+              name="password"
+              id="password"
+              placeholder="Digite sua senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className={styles.togglePassword}
+              onClick={() => setShowPassword((prev) => !prev)}
+            >
+              <img
+                src={showPassword ? EyeOnIcon : EyeOffIcon}
+                alt="Mostrar ou ocultar senha"
+              />
+            </button>
+          </div>
           {err && <p className={styles.error}>{err}</p>}
 
           <button

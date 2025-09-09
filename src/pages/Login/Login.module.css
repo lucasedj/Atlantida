@@ -40,14 +40,13 @@ label {
   font-family: "Inter", sans-serif;
   font-weight: 500;
   margin-bottom: 8px;
-  display: block; /* garante que fique acima do input */
+  display: block; 
 }
 
-/* NOVA REGRA para o container do label "Senha" + link */
 .passwordLabelRow {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;  /* alinha topo do label e link */
+  align-items: flex-start; 
   margin-bottom: 8px;
   font-weight: 500;
   color: var(--dark-blue-title-font);
@@ -61,10 +60,9 @@ label {
   font-size: 14px;
   color: var(--primary);
   text-decoration: none;
-  white-space: nowrap; /* evita quebra de linha no link */
+  white-space: nowrap;
 }
 
-/* Se quiser efeito hover no link */
 .passwordLabelRow a:hover {
   text-decoration: underline;
 }
@@ -83,8 +81,8 @@ label {
   outline: none;
   font-size: 14px;
   margin-bottom: 15px;
-  width: 100%; /* para inputs ocuparem toda largura disponível */
-  box-sizing: border-box; /* padding não expande o tamanho */
+  width: 100%; 
+  box-sizing: border-box;
 }
 
 .btn_login {
@@ -98,7 +96,7 @@ label {
   margin-top: 15px;
   margin-bottom: 30px;
   transition: 0.2s;
-  width: 100%; /* botão com mesma largura dos inputs */
+  width: 100%;
   box-sizing: border-box;
 }
 
@@ -152,4 +150,28 @@ label {
 a {
   color: var(--primary);
   text-decoration: none;
+}
+
+.passwordContainer {
+  position: relative;
+}
+
+.togglePassword {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.togglePassword img {
+  width: 25px;
+  height: 25px;
+  margin-bottom: 15px;
 }

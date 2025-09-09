@@ -37,18 +37,21 @@ const RegistrationForm = () => {
     formState: { errors },
   } = useForm();
 
-  const navigate = useNavigate(); // ✅ adicionado
+  const navigate = useNavigate();
 
   const onSubmit = (data) => {
     console.log(data);
-    navigate("/registerE"); // ✅ redireciona após validação
+    navigate("/registerE");
   };
 
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
+  //regex
+  const emailRegex = /^[^\s@]+@[^\s@]+(\.[^\s@]{2,})+$/;
+
   useEffect(() => {
-   
+
   }, [])
 
   return (
@@ -109,7 +112,7 @@ const RegistrationForm = () => {
               }}
               required
               onInvalid={(e) => e.target.setCustomValidity("")}
-              type =""
+              type=""
               className="input"
               placeholder="Seu primeiro nome"
             />
@@ -120,14 +123,14 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Sobrenome</label>
             <input
-               value={lastName}
+              value={lastName}
               onChange={(e) => {
                 setLastName(e.target.value)
                 e.target.setCustomValidity("")
               }}
               required
               onInvalid={(e) => e.target.setCustomValidity("")}
-              type ="text"
+              type="text"
               className="input"
               placeholder="Seu último nome"
             />
@@ -156,14 +159,15 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">E-mail</label>
             <input
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
-              type="email"
+              {...register("email", {
+                required: "E-mail é obrigatório.",
+                pattern: {
+                  value: emailRegex,
+                  message:
+                    "Insira um formato de email válido.",
+                },
+              })}
+              type="text"
               className="input"
               placeholder="exemplo@seuemail.com"
             />
@@ -175,14 +179,18 @@ const RegistrationForm = () => {
             <label className="label">Senha</label>
             <div className="password-container">
               <input
+                {...register("password", {
+                  required: "Senha é obrigatória.",
+                  minLength: {
+                    value: 8,
+                    message: "A senha deve ter pelo menos 8 caracteres.",
+                  },
+                })}
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => {
-                setPassword(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
+                  setPassword(e.target.value);
+                }}
                 className="input"
                 placeholder="Informe sua senha"
               />
@@ -202,14 +210,16 @@ const RegistrationForm = () => {
             <label className="label">Confirmar senha</label>
             <div className="password-container">
               <input
+                {...register("confirmPassword", {
+                  required: "Confirmação de senha é obrigatória.",
+                  validate: (value) =>
+                    value === password || "As senhas não coincidem.",
+                })}
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => {
-                setconfirmPassword(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              required
-              onInvalid={(e) => e.target.setCustomValidity("")}
+                  setconfirmPassword(e.target.value);
+                }}
                 className="input"
                 placeholder="Repita sua senha"
               />
@@ -228,6 +238,7 @@ const RegistrationForm = () => {
               <p className="error">{errors.confirmPassword.message}</p>
             )}
           </div>
+
 
           <button type="submit" className="submit-button">
             PRÓXIMA ETAPA
