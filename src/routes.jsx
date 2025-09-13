@@ -13,6 +13,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Error404 from "./pages/Error404";
 import Terms from "./pages/Terms";
 import Logged from "./pages/Logged";
+import Statistics from "./pages/Statistics";
 
 // Pastas com index.jsx podem ser importadas só pelo diretório
 import RegisterDive from "./pages/RegisterDive";
@@ -39,6 +40,7 @@ export default function AppRoutes() {
         <Route path="/registerE" element={<RegisterStep2 />} />
         <Route path="/forgotpassword" element={<ForgotPassword />} />
         <Route path="/termos" element={<Terms />} />
+        <Route path="/logged/estatisticas" element={<Statistics />} />
 
         {/* Painel */}
         <Route path="/logged" element={<Logged />} />
