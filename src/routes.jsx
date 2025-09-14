@@ -1,5 +1,5 @@
 // src/routes.jsx
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import Article1 from "./pages/Articles/Article-1";
 import Article2 from "./pages/Articles/Article-2";
@@ -12,25 +12,27 @@ import RegisterStep2 from "./pages/RegisterStep2";
 import ForgotPassword from "./pages/ForgotPassword";
 import Error404 from "./pages/Error404";
 import Terms from "./pages/Terms";
-import Logged from "./pages/Logged";
+import Logged from "./pages/logged";
 import Statistics from "./pages/Statistics";
 
-// Pastas com index.jsx podem ser importadas só pelo diretório
+// Fluxo registrar mergulho
 import RegisterDive from "./pages/RegisterDive";
 import Step2 from "./pages/RegisterDive/Step2";
 import Step3 from "./pages/RegisterDive/Step3";
 import Step4 from "./pages/RegisterDive/Step4";
 import Step5 from "./pages/RegisterDive/Step5";
 
-
 import Certificates from "./pages/Certificates";
 import Profile from "./pages/Profile";
+
+// 🔹 Tela de Locais de Mergulho
+import Spots from "./pages/Spots"; // ajuste o caminho se seu arquivo estiver em outro lugar
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Página inicial (ajuste se quiser redirecionar direto pro /logged) */}
+        {/* Página inicial */}
         <Route path="/" element={<Home />} />
         {/* <Route path="/" element={<Navigate to="/logged" replace />} /> */}
 
@@ -44,6 +46,7 @@ export default function AppRoutes() {
 
         {/* Painel */}
         <Route path="/logged" element={<Logged />} />
+        <Route path="/logged/locais" element={<Spots />} />
 
         {/* Fluxo de registrar mergulho */}
         <Route path="/logged/registrar-mergulho" element={<RegisterDive />} />

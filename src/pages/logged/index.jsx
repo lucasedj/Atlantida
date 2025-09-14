@@ -1,5 +1,5 @@
 // src/pages/Logged/index.jsx
-import React, { memo, useEffect, useMemo, useState } from "react";
+import React, { memo, useEffect, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import "./logged.css";
 import { getCurrentUser, me, logout } from "../../features/auth/authService";
@@ -26,8 +26,268 @@ function SectionTitle({ children }) {
   return <h2 className="dash__sectionTitle">{children}</h2>;
 }
 
-/* Weather “skeleton” pronto para plugar API depois */
-function WeatherCard() {
+/* ===========================
+ * PREVISÃO DO TEMPO (Open-Meteo)
+ * =========================== */
+function WeatherCard({ user }) {
+  const [state, setState] = useState({
+    loading: true,
+    placeText: "—",
+    currentTemp: null,
+    todaySummary: "—",
+    todayIconKey: "cloud",
+    daily: [], // [{date, dShort, tMax, tMin, iconKey, desc}]
+    err: "",
+  });
+
+  /* --------- Ícones finos em SVG (azul) --------- */
+  function WxIcon({ name, size = 26 }) {
+    const p = {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.8,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+    };
+    const Sun = () => (
+      <svg {...p}>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+      </svg>
+    );
+    const Cloud = () => (
+      <svg {...p}>
+        <path d="M7 18h9a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.7 1.7A3.5 3.5 0 0 0 7 18z" />
+      </svg>
+    );
+    const Partly = () => (
+      <svg {...p}>
+        <circle cx="7.5" cy="8" r="3.2" />
+        <path d="M7.5 3.5V2M7.5 14v-1.5M2.5 8H1M14 8h-1.5M3.8 3.8 2.7 2.7M12.3 13.3l-1.1-1.1" />
+        <path d="M8.5 19h8a3.5 3.5 0 0 0 0-7 4.5 4.5 0 0 0-8.8 1.4A3 3 0 0 0 8.5 19z" />
+      </svg>
+    );
+    const Rain = () => (
+      <svg {...p}>
+        <path d="M7 16h9a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.7 1.7A3.5 3.5 0 0 0 7 16z" />
+        <path d="M9 19l-1 2M12 19l-1 2M15 19l-1 2" />
+      </svg>
+    );
+    const Drizzle = () => (
+      <svg {...p}>
+        <path d="M7 16h9a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.7 1.7A3.5 3.5 0 0 0 7 16z" />
+        <circle cx="9" cy="19" r="1" />
+        <circle cx="12" cy="19" r="1" />
+        <circle cx="15" cy="19" r="1" />
+      </svg>
+    );
+    const Storm = () => (
+      <svg {...p}>
+        <path d="M7 16h9a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.7 1.7A3.5 3.5 0 0 0 7 16z" />
+        <path d="M12 17l-2 4 4-3h-3l2-3" />
+      </svg>
+    );
+    const Snow = () => (
+      <svg {...p}>
+        <path d="M7 16h9a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.7 1.7A3.5 3.5 0 0 0 7 16z" />
+        <path d="M12 18v3M10.5 19l-2 1M13.5 19l2 1" />
+      </svg>
+    );
+    const Fog = () => (
+      <svg {...p}>
+        <path d="M7 15h9a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.7 1.7A3.5 3.5 0 0 0 7 15z" />
+        <path d="M6 18h12M7.5 20.5h9" />
+      </svg>
+    );
+    const M = { sun: Sun, cloud: Cloud, partly: Partly, rain: Rain, drizzle: Drizzle, storm: Storm, snow: Snow, fog: Fog };
+    const Cmp = M[name] || Cloud;
+    return <Cmp />;
+  }
+
+  /* --------- Mapeamentos --------- */
+  const wmoToIconKey = (code) => {
+    const c = Number(code);
+    if (c === 0) return "sun";
+    if ([1, 2].includes(c)) return "partly";
+    if (c === 3) return "cloud";
+    if ([45, 48].includes(c)) return "fog";
+    if ([51, 53, 55, 56, 57].includes(c)) return "drizzle";
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(c)) return "rain";
+    if ([71, 73, 75, 77].includes(c)) return "snow";
+    if ([95, 96, 99].includes(c)) return "storm";
+    return "cloud";
+  };
+
+  const wmoToDesc = (code) => {
+    const c = Number(code);
+    if ([0].includes(c)) return "ensolarado";
+    if ([1].includes(c)) return "sol entre nuvens";
+    if ([2].includes(c)) return "parcialmente nublado";
+    if ([3].includes(c)) return "nublado";
+    if ([45, 48].includes(c)) return "neblina";
+    if ([51, 53, 55].includes(c)) return "garoa";
+    if ([56, 57].includes(c)) return "garoa congelante";
+    if ([61].includes(c)) return "chuva fraca";
+    if ([63].includes(c)) return "chuva";
+    if ([65].includes(c)) return "chuva forte";
+    if ([66, 67].includes(c)) return "chuva congelante";
+    if ([71, 73, 75, 77].includes(c)) return "neve";
+    if ([80].includes(c)) return "pancadas fracas";
+    if ([81].includes(c)) return "pancadas";
+    if ([82].includes(c)) return "pancadas fortes";
+    if ([95].includes(c)) return "trovoadas";
+    if ([96, 99].includes(c)) return "trovoadas fortes";
+    return "instável";
+  };
+
+  // tenta montar "Cidade, Estado" a partir do objeto user
+  const guessPlaceFromUser = (u) => {
+    const city =
+      u?.city ||
+      u?.address?.city ||
+      u?.profile?.city ||
+      u?.location?.city ||
+      u?.homeCity ||
+      "";
+    const state =
+      u?.state ||
+      u?.address?.state ||
+      u?.profile?.state ||
+      u?.location?.state ||
+      u?.homeState ||
+      "";
+    const country = u?.country || u?.address?.country || "";
+    const text = [city, state || country].filter(Boolean).join(", ");
+    return text || "";
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchWeather = async () => {
+      try {
+        setState((s) => ({ ...s, loading: true, err: "" }));
+
+        // 1) descobre local
+        let placeText = guessPlaceFromUser(user);
+
+        // 2) geocoding → lat/lon
+        let lat, lon, tz;
+
+        const geocode = async (q) => {
+          const url =
+            "https://geocoding-api.open-meteo.com/v1/search?name=" +
+            encodeURIComponent(q) +
+            "&count=1&language=pt&format=json";
+          const r = await fetch(url);
+          if (!r.ok) throw new Error("geocoding falhou");
+          const j = await r.json();
+          const g = j?.results?.[0];
+          if (g) {
+            lat = g.latitude;
+            lon = g.longitude;
+            tz = g.timezone;
+            if (!placeText) {
+              placeText = [g.name, g.admin1 || g.admin2, g.country_code]
+                .filter(Boolean)
+                .join(", ");
+            }
+          }
+        };
+
+        if (placeText) {
+          await geocode(placeText);
+        }
+
+        // fallback: usar GPS do navegador
+        if (!(lat && lon) && "geolocation" in navigator) {
+          await new Promise((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                lat = pos.coords.latitude;
+                lon = pos.coords.longitude;
+                tz =
+                  Intl.DateTimeFormat().resolvedOptions().timeZone ||
+                  "auto";
+                if (!placeText) placeText = "Minha localização";
+                resolve();
+              },
+              () => resolve(),
+              { enableHighAccuracy: true, timeout: 8000 }
+            );
+          });
+        }
+
+        // se ainda não temos coords, aborta graciosamente
+        if (!(lat && lon)) {
+          throw new Error("Não foi possível determinar a localização.");
+        }
+
+        // 3) previsão (7 dias)
+        const url =
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+          `&current_weather=true` +
+          `&daily=weather_code,temperature_2m_max,temperature_2m_min` +
+          `&forecast_days=7&timezone=${encodeURIComponent(tz || "auto")}`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("falha ao consultar previsão");
+        const wx = await res.json();
+
+        const curTemp = Math.round(wx?.current_weather?.temperature ?? NaN);
+
+        const days = (wx?.daily?.time || []).map((iso, i) => {
+          const d = new Date(iso + "T00:00:00");
+          const dShort = d
+            .toLocaleDateString("pt-BR", { weekday: "short" })
+            .replace(".", "")
+            .toLowerCase();
+          const tMax = Math.round(wx.daily.temperature_2m_max?.[i] ?? NaN);
+          const tMin = Math.round(wx.daily.temperature_2m_min?.[i] ?? NaN);
+          const code = wx.daily.weather_code?.[i];
+          const iconKey = wmoToIconKey(code);
+          const desc = wmoToDesc(code);
+          return { date: d, dShort, tMax, tMin, iconKey, desc };
+        });
+
+        const today = days[0];
+        const dowLong = today
+          ? today.date.toLocaleDateString("pt-BR", { weekday: "long" })
+          : "—";
+        const todaySummary = today ? `${dowLong}, ${today.desc}` : "—";
+
+        if (!cancelled) {
+          setState({
+            loading: false,
+            placeText: placeText || "—",
+            currentTemp: Number.isFinite(curTemp) ? curTemp : null,
+            todaySummary,
+            todayIconKey: today?.iconKey || "cloud",
+            daily: days,
+            err: "",
+          });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setState((s) => ({
+            ...s,
+            loading: false,
+            err: err?.message || "Falha ao carregar previsão.",
+          }));
+        }
+      }
+    };
+
+    fetchWeather();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // UI
   return (
     <section className="card weather" aria-labelledby="weather-title">
       <SectionTitle>
@@ -35,40 +295,72 @@ function WeatherCard() {
       </SectionTitle>
 
       <div className="weather__box">
-        <div className="weather__top">
-          <div className="weather__temp" aria-live="polite">—°C</div>
-
-          <div className="weather__cond">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <rect x="3" y="5" width="18" height="16" rx="2" stroke="#3b82f6" />
-              <path d="M8 3v4M16 3v4M3 9h18" stroke="#3b82f6" />
-            </svg>
-            <span>—, —</span>
+        <div
+          className="weather__top"
+          /* garante 3 colunas mesmo se o CSS antigo tiver 2 */
+          style={{ gridTemplateColumns: "auto 1fr auto", alignItems: "start" }}
+        >
+          <div className="weather__temp" aria-live="polite">
+            {state.currentTemp != null ? `${state.currentTemp}°C` : "—°C"}
           </div>
 
-          <div className="weather__place">
+          <div className="weather__place" title={state.placeText}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" stroke="#3b82f6"/>
-              <circle cx="12" cy="9.5" r="2.5" stroke="#3b82f6"/>
+              <path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" stroke="#1d4ed8"/>
+              <circle cx="12" cy="9.5" r="2.5" stroke="#1d4ed8"/>
             </svg>
-            <span>—</span>
+            <span>{state.placeText}</span>
+          </div>
+
+          <div className="weather__topRight" aria-hidden>
+            <div className="weather__iconBig" style={{ color: "#1d4ed8" }}>
+              <WxIcon name={state.todayIconKey} size={28} />
+            </div>
+          </div>
+
+          <div className="weather__cond" title={state.todaySummary} style={{ gridColumn: "1 / span 3", marginTop: 6 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <rect x="3" y="5" width="18" height="16" rx="2" stroke="#1d4ed8" />
+              <path d="M8 3v4M16 3v4M3 9h18" stroke="#1d4ed8" />
+            </svg>
+            <span>{state.todaySummary}</span>
           </div>
         </div>
 
         <ul className="weather__week" aria-label="Próximos dias">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <li key={i} className="weather__day" aria-hidden>
-              <span className="weather__d">—</span>
-              <span className="weather__i">☁️</span>
-              <span className="weather__t">—° <small>—°</small></span>
-            </li>
-          ))}
+          {state.daily.length > 0
+            ? state.daily.map((d) => (
+                <li key={d.date.toISOString()} className="weather__day">
+                  <span className="weather__d">{d.dShort}</span>
+                  <span className="weather__i" title={d.desc} style={{ color: "#1d4ed8" }}>
+                    <WxIcon name={d.iconKey} />
+                  </span>
+                  <span className="weather__t">
+                    {Number.isFinite(d.tMax) ? `${d.tMax}°` : "—°"}{" "}
+                    <small>{Number.isFinite(d.tMin) ? `${d.tMin}°` : "—°"}</small>
+                  </span>
+                </li>
+              ))
+            : Array.from({ length: 7 }).map((_, i) => (
+                <li key={i} className="weather__day" aria-hidden>
+                  <span className="weather__d">—</span>
+                  <span className="weather__i" style={{ color: "#1d4ed8" }}>
+                    <WxIcon name="cloud" />
+                  </span>
+                  <span className="weather__t">—° <small>—°</small></span>
+                </li>
+              ))}
         </ul>
+
+        {state.err && (
+          <p style={{ color: "#dc2626", marginTop: 6 }}>{state.err}</p>
+        )}
       </div>
     </section>
   );
 }
 
+/* Locais */
 function PlacesCard() {
   const handleMapError = (e) => {
     e.currentTarget.style.display = "none";
@@ -107,6 +399,7 @@ function PlacesCard() {
   );
 }
 
+/* Tabela de mergulhos (já com API) */
 function DivesTable() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +416,6 @@ function DivesTable() {
         const data = await apiFetch("/api/diveLogs", { auth: true });
         if (!active) return;
         const arr = Array.isArray(data) ? data : [];
-        // ordena por data desc (quando existir)
         arr.sort((a, b) => {
           const da = new Date(a?.date || 0).getTime();
           const db = new Date(b?.date || 0).getTime();
@@ -147,13 +439,11 @@ function DivesTable() {
   const fmtDate = (v) => {
     const d = new Date(v);
     return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
-    // se quiser: d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' })
   };
 
   const getSpotName = (log) => {
     const ds = log?.divingSpotId;
     if (ds && typeof ds === "object" && (ds.name || ds.title)) return ds.name || ds.title;
-    // se o backend não popular, não temos nome aqui
     return "—";
   };
 
@@ -171,7 +461,6 @@ function DivesTable() {
           <div role="columnheader" className="u-right">Profundidade atingida</div>
         </div>
 
-        {/* estados: erro, carregando, vazio, ou dados */}
         {err && (
           <div className="table__row" role="row">
             <div role="cell" colSpan={4} style={{ color: "#dc2626" }}>
@@ -241,7 +530,6 @@ export default function Logged() {
   const [user, setUser] = useState(state?.user || getCurrentUser());
 
   useEffect(() => {
-    // fallback: se recarregar a página e não tiver user no storage
     if (!user) {
       me()
         .then((u) => {
@@ -311,7 +599,7 @@ export default function Logged() {
           </header>
 
           <div className="dash__grid">
-            <WeatherCard />
+            <WeatherCard user={user} />
             <PlacesCard />
           </div>
 

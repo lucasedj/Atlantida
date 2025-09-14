@@ -258,8 +258,15 @@
 }
 .pager button:hover{ background:#f8fafc; transform:translateY(-1px); }
 
-/* ---------- Motion reduce ---------- */
-@media (prefers-reduced-motion: reduce){
-  *, *::before, *::after{ transition:none !important; }
+/* Weather — layout do topo com ícone à direita */
+.weather__top{
+  grid-template-columns: auto 1fr auto; /* temp | textos | ícone */
+  align-items: start;
 }
+.weather__topRight{ justify-self: end; }
+.weather__iconBig svg{ width:28px; height:28px; stroke:#1d4ed8; fill:none; stroke-width:1.8; }
+
+/* Ícones diários em SVG azul fininho */
+.weather__i{ display:flex; align-items:center; justify-content:center; }
+.weather__i svg{ width:26px; height:26px; stroke:#1d4ed8; fill:none; stroke-width:1.8; }
 
