@@ -28,7 +28,7 @@
 
   /* Bordas & sombras */
   --line:#e5e7eb;
-  --ring:#1e7cff26; /* 15% */
+  --ring:#1e7cff26; /* ~15% alpha */
   --shadow-1:0 1px 2px rgba(0,0,0,.04);
   --shadow-2:0 6px 16px rgba(30,124,255,.25);
 
@@ -39,6 +39,11 @@
   --space-2:12px;
   --space-3:16px;
   --space-4:20px;
+
+  /* Steps */
+  --step-min:220px;
+  --step-font:.85rem;
+  --step-num:20px;
 }
 
 /* ---------- Ajustes globais sutis ---------- */
@@ -72,26 +77,14 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 }
 
 /* =========================
-   Steps – versão responsiva e legível
-   (substitui o bloco atual de .steps*)
+   Steps – responsivo e legível
 ========================= */
-
-/* Tokens de controle dos steps */
-:root{
-  --step-min: 220px;      /* largura mínima de cada etapa no desktop */
-  --step-font: 0.85rem;   /* tamanho do texto da label */
-  --step-num: 20px;       /* diâmetro do círculo do número */
-}
-
-/* Grid: encaixa quantas colunas couberem, sem cortar texto */
 .steps{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--step-min), 1fr));
   gap: 10px;
   margin: 10px 0 8px;
 }
-
-/* Cartão da etapa */
 .steps__item{
   display: flex;
   align-items: center;
@@ -102,7 +95,7 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   color: var(--ink-700);
   border-radius: var(--radius-sm);
   font-weight: 700;
-  font-size: 0.9rem; /* leve redução global */
+  font-size: .9rem;
   transition: border-color .12s ease, background .12s ease, color .12s ease, transform .08s ease;
 }
 .steps__item:is(:hover,:focus-visible){
@@ -116,8 +109,6 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   background:#eff6ff;
   color: var(--ink-800);
 }
-
-/* Número */
 .steps__num{
   inline-size: var(--step-num);
   block-size: var(--step-num);
@@ -125,49 +116,22 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   border-radius: 999px;
   background: #eef2ff;
   color: var(--blue-700);
-  font-size: 0.75rem;
+  font-size: .75rem;
   font-weight: 800;
 }
-
-/* Label: permite 2 linhas sem estourar */
 .steps__label{
   font-size: var(--step-font);
   line-height: 1.25;
-  white-space: normal;               /* pode quebrar */
-  display: -webkit-box;              /* clamp cross-browser */
-  -webkit-line-clamp: 2;             /* até 2 linhas */
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* Barra de progresso: mantém como está */
+/* Barra de progresso (única definição) */
 .steps__progress{
-  height: 6px;
-  width: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--blue-600) 0%, #cbd5e1 0%);
-}
-
-/* Responsivo: em telas menores, encolhe um pouco */
-@media (max-width: 1024px){
-  :root{
-    --step-min: 190px;
-    --step-font: 0.82rem;
-    --step-num: 18px;
-  }
-}
-@media (max-width: 780px){
-  :root{
-    --step-min: 160px;
-    --step-font: 0.8rem;
-    --step-num: 18px;
-  }
-}
-
-/* Barra de progresso (todas as etapas) */
-.steps__progress{
-  height: 6px;
-  width: 100%;
+  height: 6px; width: 100%;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--blue-600) 0%, #cbd5e1 0%);
 }
@@ -226,10 +190,22 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   color: var(--ink-600);
   cursor: not-allowed;
 }
+/* Estados acessíveis */
+.input[aria-invalid="true"]{
+  border-color: var(--red-600) !important;
+  box-shadow: 0 0 0 3px rgba(225,29,72,.15) !important;
+}
 .field--error .input{ border-color: var(--red-600); box-shadow: 0 0 0 3px rgba(225,29,72,.15); }
 .field--success .input{ border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(22,163,74,.15); }
 
-/* Remove spinners de number (caso você use) */
+/* Mensagem de erro abaixo do campo */
+.field__error{
+  margin-top: 6px;
+  color: var(--red-600);
+  font-size: .9rem;
+}
+
+/* Remove spinners de number */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button{ -webkit-appearance: none; margin: 0; }
 input[type=number]{ -moz-appearance: textfield; }
@@ -280,6 +256,8 @@ textarea.input{
   border-color: var(--blue-600);
   box-shadow: 0 0 0 3px var(--ring);
 }
+.dropzone--clickable { cursor: pointer; }
+.dropzone--clickable:focus-within { box-shadow: 0 0 0 3px var(--ring); }
 
 /* ---------- Ações ---------- */
 .form-actions{
@@ -289,6 +267,8 @@ textarea.input{
   display: flex; justify-content: center; gap: 12px;
   background: linear-gradient(#ffffff00, #ffffffaa 40%, #ffffff 70%);
   padding-top: var(--space-2);
+  -webkit-backdrop-filter:saturate(120%) blur(2px);
+  backdrop-filter:saturate(120%) blur(2px);
 }
 
 /* Botões — base compartilhada */
@@ -347,7 +327,7 @@ textarea.input{
   background: #fff; cursor: not-allowed; box-shadow: none; transform: none;
 }
 
-/* Secundário (opcional) */
+/* Secundário */
 .btn-secondary{
   min-width: 220px;
   border: 1px solid #d1d5db;
@@ -364,18 +344,25 @@ textarea.input{
 .u-soft{ background: var(--bg-soft); }
 
 /* ---------- Responsivo ---------- */
+@media (max-width: 1024px){
+  :root{
+    --step-min:190px;
+    --step-font:.82rem;
+    --step-num:18px;
+  }
+}
 @media (max-width: 780px){
+  :root{
+    --step-min:160px;
+    --step-font:.8rem;
+    --step-num:18px;
+  }
   .steps{ grid-template-columns: 1fr 1fr; }
   .form-actions{ padding-bottom: var(--space-2); }
   .btn-primary{ min-width: 100%; }
 }
 
-/* Etapa 4 – progresso ~80% (mantido) */
-.steps__progress.is-4{
-  background: linear-gradient(90deg, var(--blue-600) 0% 80%, #cbd5e1 80% 100%);
-}
-
-/* Acessibilidade para labels “ocultas” mas lidas por leitores de tela */
+/* Acessibilidade para labels “ocultas” */
 .visually-hidden{
   position: absolute !important;
   height: 1px; width: 1px;
@@ -393,11 +380,7 @@ textarea.input{
   }
 }
 
-/* Dropzone clicável (cursor e foco) */
-.dropzone--clickable { cursor: pointer; }
-.dropzone--clickable:focus-within { box-shadow: 0 0 0 3px var(--ring); }
-
-/* Grid de previews */
+/* Grid de previews (Step 5) */
 .thumbs-grid{
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -425,12 +408,36 @@ textarea.input{
 }
 .thumb__remove:hover{ background: rgba(0,0,0,.75); }
 
-/* Reduz fonte das etapas */
-.steps__item {
-  font-size: 0.9rem;   
+/* ============ Autocomplete ============ */
+.auto{ position:relative; }
+.auto .input[aria-expanded="true"]{
+  border-color: var(--blue-600);
+  box-shadow: 0 0 0 3px var(--ring);
 }
+.auto__panel{
+  position:absolute; inset-inline:0; top:100%; margin-top:6px; z-index:40;
+  background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+  box-shadow:0 12px 28px rgba(2,32,71,.12); padding:6px;
+  max-height:280px; overflow:auto;
+  overscroll-behavior: contain;
+}
+.auto__panel::-webkit-scrollbar{ width: 10px; }
+.auto__panel::-webkit-scrollbar-thumb{
+  background:#e2e8f0; border-radius:999px;
+}
+.auto__item{
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  gap:10px; padding:10px 12px; border:0; background:#fff; cursor:pointer; border-radius:10px;
+  transition:background .12s ease, transform .06s ease;
+  text-align:left;
+}
+.auto__item.is-active, .auto__item:hover{ background:#f6f8ff; }
+.auto__item.is-muted{ color:#64748b; cursor:default; }
+.auto__create{ font-weight:800; }
+.auto__title{ font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.auto__sub{ color:#64748b; }
 
-.steps__label {
-  font-size: 0.80rem;  
-  line-height: 1.3;    
+/* Redução leve adicional das labels dos steps em telas estreitas */
+@media (max-width: 420px){
+  .steps__label{ -webkit-line-clamp: 1; }
 }

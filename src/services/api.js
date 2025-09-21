@@ -12,24 +12,43 @@ export function toPublicUrl(raw) {
   return `${API_URL}${p}`;
 }
 
+const buildURL = (path) => {
+  if (!path) return API_URL;
+  if (/^https?:\/\//i.test(path)) return path;
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${API_URL}${p}`;
+};
+
 /**
- * apiFetch(path, { method, body, headers, auth, timeoutMs })
+ * apiFetch(path, { method, body, headers, auth, timeoutMs, retryUnauth, parse, credentials })
  * - Não força Content-Type quando body é FormData/Blob/URLSearchParams
- * - Adiciona Authorization automaticamente quando auth=true
- * - Lê JSON por padrão e trata 204/205
+ * - Adiciona Authorization automaticamente quando auth=true (token em localStorage)
+ * - Reenvia sem Authorization se vier 401/403 (fallback p/ rotas públicas)
+ * - **NÃO** envia cookies por padrão; use { credentials: "include" } se precisar
+ * - Lê JSON por padrão; suporta texto/blobs
  * - Timeout com AbortController
  */
 export async function apiFetch(
   path,
-  { method = "GET", body, headers, auth = true, timeoutMs = 30000 } = {}
+  {
+    method = "GET",
+    body,
+    headers,
+    auth = true,
+    timeoutMs = 30000,
+    retryUnauth = true,   // tenta novamente sem Authorization em caso de 401/403
+    parse = "auto",       // 'auto' | 'json' | 'text' | 'blob' | false
+    credentials,          // opcional: 'include' | 'same-origin' | 'omit'
+  } = {}
 ) {
-  const isFormData =
-    typeof FormData !== "undefined" && body instanceof FormData;
-  const isURLParams =
-    typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams;
+  const url = buildURL(path);
+
+  // Tipos de body p/ não setar Content-Type manualmente
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  const isURLParams = typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams;
   const isBlob = typeof Blob !== "undefined" && body instanceof Blob;
 
-  // Cabeçalhos
+  // Cabeçalhos base
   const computedHeaders = { ...(headers || {}) };
   if (!isFormData && !isBlob && !isURLParams) {
     computedHeaders["Content-Type"] =
@@ -37,13 +56,19 @@ export async function apiFetch(
   }
   computedHeaders["Accept"] = computedHeaders["Accept"] || "application/json";
 
-  // Auth
-  if (auth) {
-    const token = localStorage.getItem("token");
-    if (token) computedHeaders.Authorization = `Bearer ${token}`;
+  // Token (tenta vários locais comuns)
+  let token = localStorage.getItem("token");
+  if (!token) {
+    try {
+      const rawUser = localStorage.getItem("user");
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        token = u?.token || u?.accessToken || u?.jwt || u?.data?.token || undefined;
+      }
+    } catch {}
   }
 
-  // Body
+  // Body final
   const upper = String(method).toUpperCase();
   const hasBody = body != null && upper !== "GET" && upper !== "HEAD";
   const finalBody =
@@ -57,56 +82,71 @@ export async function apiFetch(
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), timeoutMs);
 
-  let res;
-  try {
-    res = await fetch(`${API_URL}${path}`, {
+  const doFetch = async (withAuth) => {
+    const h = { ...computedHeaders };
+    if (withAuth && token) h.Authorization = `Bearer ${token}`;
+
+    const opts = {
       method: upper,
-      headers: computedHeaders,
+      headers: h,
       body: finalBody,
       signal: ctrl.signal,
-    });
+      // NÃO forçar mode/credentials aqui para evitar CORS indesejado
+    };
+    if (credentials) opts.credentials = credentials;
+
+    return fetch(url, opts);
+  };
+
+  let res;
+  try {
+    res = await doFetch(auth);
+    // Fallback: se rota permitir público, tenta sem Authorization
+    if ((res.status === 401 || res.status === 403) && auth && retryUnauth) {
+      res = await doFetch(false);
+    }
   } catch (err) {
     clearTimeout(id);
-    // erros de rede/timeout
     if (err?.name === "AbortError") {
       throw new Error("Tempo de requisição excedido. Tente novamente.");
     }
     throw new Error("Falha na conexão com a API.");
+  } finally {
+    clearTimeout(id);
   }
-  clearTimeout(id);
 
-  // Sem conteúdo
+  // 204/205 sem conteúdo
   if (res.status === 204 || res.status === 205) return {};
 
-  const ct = res.headers.get("content-type") || "";
-  const isJSON = ct.includes("application/json");
+  // Conteúdo / parsing
+  const contentType = res.headers.get("content-type") || "";
+  const isJSON = contentType.includes("application/json");
 
-  let payload;
-  if (isJSON) {
-    try {
-      payload = await res.json();
-    } catch {
-      payload = {};
+  const readBody = async () => {
+    if (parse === false) return undefined;
+    if (parse === "text") return await res.text();
+    if (parse === "blob") return await res.blob();
+    if (parse === "json") {
+      try { return await res.json(); } catch { return {}; }
     }
-  } else {
-    const contentLength = res.headers.get("content-length");
-    if (!contentLength || contentLength === "0") {
-      payload = {};
-    } else {
-      payload = await res.text();
+    // auto
+    if (isJSON) {
+      try { return await res.json(); } catch { return {}; }
     }
-  }
+    try { return await res.text(); } catch { return ""; }
+  };
+
+  const payload = await readBody();
 
   if (!res.ok) {
-    const msg = isJSON
-      ? payload?.message || payload?.error || `Erro ${res.status}`
-      : `Erro ${res.status} — resposta não-JSON: ${String(payload).slice(0, 120)}...`;
-    throw new Error(msg);
-  }
-
-  // API deveria devolver JSON; se vier texto com conteúdo, sinaliza possível rota errada
-  if (!isJSON && Object.keys(payload || {}).length) {
-    throw new Error("A API devolveu conteúdo não-JSON (rota/URL possivelmente incorreta).");
+    const message =
+      (isJSON && payload && (payload.message || payload.error)) ||
+      res.statusText ||
+      `Erro ${res.status}`;
+    const err = new Error(message);
+    err.status = res.status;
+    err.payload = payload;
+    throw err;
   }
 
   return payload ?? {};

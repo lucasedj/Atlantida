@@ -163,6 +163,29 @@ export default function Step5() {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
 
+  // mapeia 'Pequena/Média/Grande' -> 'BAIXO/MODERADO/ALTO'
+  const difficultyToLevel = (txt) => {
+    const t = norm(txt);
+    if (t === "grande") return "ALTO";
+    if (t === "media" || t === "média") return "MODERADO";
+    if (t === "pequena") return "BAIXO";
+    return undefined;
+  };
+
+  // tenta descobrir o _id do spot pelo nome (igual ignorando acento/maiúsculas)
+  const findSpotIdByName = async (placeName) => {
+    if (!placeName) return null;
+    try {
+      const data = await apiFetch("/api/divingSpots", { auth: true });
+      const arr = Array.isArray(data) ? data : [];
+      const target = norm(placeName);
+      const found = arr.find((s) => norm(s.name) === target);
+      return found?._id || null;
+    } catch {
+      return null;
+    }
+  };
+
   // ========== SUBMIT ==========
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -186,7 +209,7 @@ export default function Step5() {
       const type = d.diveType || d.tipoMergulho || "";
 
       // Se você já tiver salvo um ID do ponto:
-      const divingSpotId = d.divingSpotId || undefined;
+      let divingSpotId = d.divingSpotId || undefined;
 
       // Profundidade/tempo
       const depth = toNum(d.depth ?? d.maxDepth);
@@ -202,8 +225,7 @@ export default function Step5() {
         bottom: toNum(d.tBottom),
       };
       const waterType = d.waterType;
-      // const waterBody = d.waterBody; // opcional
-      const visibility = d.visibility;
+      const visibility = d.visibility; // já compatível com ALTO/MODERADO/BAIXO se veio da etapa 3
       const waves = d.waves;
       const current = d.current;
       const surge = Array.isArray(d.swell) ? d.swell.join(", ") : d.swell;
@@ -236,8 +258,9 @@ export default function Step5() {
 
       // Etapa 5 (atuais)
       const ratingNum = rating || undefined;
-      const diffMap = { pequena: 1, media: 3, grande: 5 }; // sem duplicidade
+      const diffMap = { pequena: 1, media: 3, grande: 5 };
       const difficultyNum = diffMap[norm(difficulty)];
+      const difficultyLevel = difficultyToLevel(difficulty); // 'ALTO' | 'MODERADO' | 'BAIXO' | undefined
       const notes = comment?.trim() || undefined;
 
       // Validação dos obrigatórios
@@ -258,7 +281,7 @@ export default function Step5() {
       // Fotos
       const photos = await filesToBase64(files.map((f) => f.file)); // [{data, contentType}]
 
-      // Monta payload conforme o model
+      // ===== 1) Salva o log do mergulho =====
       const payload = {
         title,
         date,
@@ -266,7 +289,6 @@ export default function Step5() {
         depth,
         bottomTimeInMinutes,
         waterType,
-        // waterBody,
         weatherConditions,
         temperature,
         visibility,
@@ -278,18 +300,53 @@ export default function Step5() {
         additionalEquipment,
         cylinder,
         rating: ratingNum,
-        difficulty: difficultyNum,
+        difficulty: difficultyNum, // mantém numérico no log (1/3/5) como já estava
         notes,
         photos,
-        ...(divingSpotId ? { divingSpotId } : { place: placeStr }), // <- usa 'place' se não houver ID
+        ...(divingSpotId ? { divingSpotId } : { place: placeStr }), // usa 'place' se não houver ID
       };
 
-      // Envia como JSON para /api/diveLogs (com Bearer automático via apiFetch)
       await apiFetch("/api/diveLogs", {
         method: "POST",
         auth: true,
         body: payload,
       });
+
+      // ===== 2) Gera a AVALIAÇÃO para o ponto =====
+      // Resolve o _id do spot se ainda não tiver
+      if (!divingSpotId && placeStr) {
+        divingSpotId = await findSpotIdByName(placeStr);
+      }
+
+      // Só cria avaliação se houver spotId e algum conteúdo relevante
+      if (divingSpotId && (ratingNum || notes || (photos && photos.length))) {
+        const reviewBody = {
+          divingSpotId,
+          rating: ratingNum,
+          difficultyLevel, // ALTO | MODERADO | BAIXO
+          visibility,      // se veio da Etapa 3
+          comment: notes,
+          photos,
+        };
+
+        try {
+          await apiFetch("/api/comments", {
+            method: "POST",
+            auth: true,
+            body: reviewBody,
+          });
+        } catch {
+          try {
+            await apiFetch(`/api/divingSpots/${divingSpotId}/comments`, {
+              method: "POST",
+              auth: true,
+              body: reviewBody,
+            });
+          } catch {
+            // não bloqueia o fluxo se a avaliação falhar
+          }
+        }
+      }
 
       clearDraft();
       setMsg("Mergulho registrado com sucesso!");

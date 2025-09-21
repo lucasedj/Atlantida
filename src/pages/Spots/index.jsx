@@ -1,4 +1,12 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import "../Logged/logged.css";
 import "./spots.css";
@@ -20,32 +28,47 @@ const MenuItem = memo(function MenuItem({ to, icon, children, end = false }) {
   );
 });
 
+/* =========================================================
+ * CONFIG de COMENTÁRIOS (alinhado ao seu backend)
+ * ========================================================= */
+const COMMENTS_WRITE_ENABLED = true; // ✅ temos endpoint no backend
+
+// Leitura: 1) GET /api/:spotId/comments  2) fallbacks embutidos
+const COMMENTS_READ_PATHS = (spotId) => [
+  `/api/${spotId}/comments`,
+  { type: "embedded", path: `/api/divingSpots/${spotId}` },
+  { type: "embeddedList", path: `/api/divingSpots` },
+];
+
+// Escrita: POST direto em /api/comments
+const COMMENTS_WRITE_PATHS = () => [`/api/comments`];
+
 /* ---------- Img fallback ---------- */
 function PublicImg({ candidates, alt = "", className = "", style }) {
   const [idx, setIdx] = useState(0);
   const src = candidates[Math.min(idx, candidates.length - 1)];
+  const onError = useCallback(() => {
+    setIdx((i) => (i < candidates.length - 1 ? i + 1 : i));
+  }, [candidates.length]);
   return (
-    <img
-      src={src}
-      alt={alt}
-      className={className}
-      style={style}
-      onError={() => {
-        if (idx < candidates.length - 1) setIdx((i) => i + 1);
-      }}
-    />
+    <img src={src} alt={alt} className={className} style={style} onError={onError} />
   );
 }
 
 /* ---------- Stars ---------- */
 function StarRating({ value = 0, size = 14 }) {
   const v = Math.max(0, Math.min(5, Number(value) || 0));
+  const rounded = Math.round(v);
   return (
     <span className="stars" style={{ fontSize: size }}>
       {"★★★★★".split("").map((_, i) => (
-        <span key={i} className={i < Math.round(v) ? "on" : ""}>★</span>
+        <span key={i} className={i < rounded ? "on" : ""} aria-hidden>
+          ★
+        </span>
       ))}
-      <span className="stars__val">{v ? v.toFixed(1) : "—"}</span>
+      <span className="stars__val" aria-label={`Nota ${v ? v.toFixed(1) : "indisponível"}`}>
+        {v ? v.toFixed(1) : "—"}
+      </span>
     </span>
   );
 }
@@ -68,6 +91,7 @@ const ensureLeaflet = () =>
     const existing = document.getElementById(jsId);
     if (existing) {
       existing.addEventListener("load", () => resolve(window.L));
+      existing.addEventListener("error", reject);
       return;
     }
     const script = document.createElement("script");
@@ -82,7 +106,12 @@ const ensureLeaflet = () =>
 /* =========================================
  * Mapa de Spots
  * ========================================= */
-function SpotsMap({ spots = [], selectedId, onSelectSpot, onPickLatLon }) {
+const SpotsMap = memo(function SpotsMap({
+  spots = [],
+  selectedId,
+  onSelectSpot,
+  onPickLatLon,
+}) {
   const mapEl = useRef(null);
   const mapRef = useRef(null);
   const markersLayerRef = useRef(null);
@@ -161,18 +190,53 @@ function SpotsMap({ spots = [], selectedId, onSelectSpot, onPickLatLon }) {
     const s = spots.find((x) => String(x._id) === String(selectedId));
     const [lon, lat] = s?.location?.coordinates || [];
     if (typeof lat === "number" && typeof lon === "number") {
-      mapRef.current.setView([lat, lon], Math.max(mapRef.current.getZoom(), 7), { animate: true });
+      mapRef.current.setView([lat, lon], Math.max(mapRef.current.getZoom(), 7), {
+        animate: true,
+      });
     }
   }, [selectedId, spots]);
 
   return (
-    <div className="spots__mapPanel" ref={mapEl} role="img" aria-label="Mapa com pontos de mergulho" />
+    <div
+      className="spots__mapPanel"
+      ref={mapEl}
+      role="img"
+      aria-label="Mapa com pontos de mergulho"
+    />
   );
+});
+
+/* --------- Hook utilitário p/ arquivos --------- */
+function useFileList(initial = []) {
+  const [items, setItems] = useState(initial);
+
+  const pushFiles = useCallback((fileList) => {
+    const arr = Array.from(fileList || []);
+    const next = arr.map((f) => ({ file: f, url: URL.createObjectURL(f) }));
+    setItems((prev) => [...prev, ...next]);
+  }, []);
+
+  const removeAt = useCallback((idx) => {
+    setItems((prev) => {
+      URL.revokeObjectURL(prev[idx]?.url);
+      const copy = [...prev];
+      copy.splice(idx, 1);
+      return copy;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      items.forEach((f) => f?.url && URL.revokeObjectURL(f.url));
+    };
+  }, [items]);
+
+  return { items, pushFiles, removeAt, setItems };
 }
 
-/* =============== Modal de avaliação (somente os campos da UI) =============== */
+/* =============== Modal de avaliação =============== */
 function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
-  const [files, setFiles] = useState([]);
+  const { items: files, pushFiles, removeAt, setItems } = useFileList();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [visibility, setVisibility] = useState("");
@@ -180,35 +244,23 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const reviewPhotosId = useId();
+
   useEffect(() => {
     if (!open) {
-      setFiles([]); setRating(0); setHover(0);
+      setItems([]); setRating(0); setHover(0);
       setVisibility(""); setLevel(""); setNotes("");
       return;
     }
     const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, setItems]);
 
-  const handleFiles = (fileList) => {
-    const arr = Array.from(fileList || []);
-    const next = arr.map((f) => ({ file: f, url: URL.createObjectURL(f) }));
-    setFiles((prev) => [...prev, ...next]);
-  };
-  const onInputChange = (e) => handleFiles(e.target.files);
-  const onDrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
-  const onDragOver = (e) => e.preventDefault();
-  const removeFile = (idx) => {
-    setFiles((prev) => {
-      URL.revokeObjectURL(prev[idx]?.url);
-      const copy = [...prev];
-      copy.splice(idx, 1);
-      return copy;
-    });
-  };
-
-  const filesToBase64 = async (fileObjs) => {
+  const onInputChange = useCallback((e) => pushFiles(e.target.files), [pushFiles]);
+  const onDrop = useCallback((e) => { e.preventDefault(); pushFiles(e.dataTransfer.files); }, [pushFiles]);
+  const onDragOver = useCallback((e) => e.preventDefault(), []);
+  const filesToBase64 = useCallback(async (fileObjs) => {
     const read = (file) =>
       new Promise((resolve, reject) => {
         const fr = new FileReader();
@@ -222,33 +274,38 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
         fr.readAsDataURL(file);
       });
     return Promise.all(fileObjs.map(read));
-  };
+  }, []);
 
-  const submit = async () => {
-    if (!rating) return; // mantém UX: precisa dar uma nota
+  const submit = useCallback(async () => {
+    if (!rating) return;
     setSubmitting(true);
     try {
       const photos = await filesToBase64(files.map((f) => f.file));
+      const text = (notes || "").trim();
       await onSubmit?.({
         rating,
         visibility: visibility || undefined,
         difficultyLevel: level || undefined,
-        comment: notes?.trim() || undefined, // <- campo que será salvo no comments
+        comment: text,
+        comments: text,
         photos,
       });
       onClose?.();
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [files, filesToBase64, level, notes, onClose, onSubmit, rating, visibility]);
 
   if (!open) return null;
   return (
-    <div className="modal__overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div
+      className="modal__overlay"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+    >
       <div className="modal" role="dialog" aria-modal="true" aria-label="Avaliar ponto de mergulho">
         <header className="modal__head">
           <h3 className="modal__title">Avaliar ponto de mergulho</h3>
-          <button className="modal__close" onClick={onClose} aria-label="Fechar">×</button>
+          <button className="modal__close" onClick={onClose} aria-label="Fechar" type="button">×</button>
         </header>
 
         <div className="modal__body">
@@ -258,8 +315,8 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
               <h4 className="modal__sectionTitle">Fotos</h4>
               <p className="modal__hint">O que você viu durante seu mergulho?</p>
 
-              <input id="reviewPhotos" type="file" accept="image/*" multiple hidden onChange={onInputChange} />
-              <label htmlFor="reviewPhotos" className="dropzone modal__dropzone" onDrop={onDrop} onDragOver={onDragOver}>
+              <input id={reviewPhotosId} type="file" accept="image/*" multiple hidden onChange={onInputChange} />
+              <label htmlFor={reviewPhotosId} className="dropzone modal__dropzone" onDrop={onDrop} onDragOver={onDragOver}>
                 <div className="dropzone__inner">
                   <div className="modal__dropIcon" aria-hidden>🗂️</div>
                   <div className="dropzone__text">
@@ -274,7 +331,7 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
                   {files.map((f, idx) => (
                     <div className="thumb" key={f.url}>
                       <img src={f.url} alt={`Foto ${idx + 1}`} />
-                      <button type="button" className="thumb__remove" onClick={() => removeFile(idx)} aria-label="Remover foto">×</button>
+                      <button type="button" className="thumb__remove" onClick={() => removeAt(idx)} aria-label="Remover foto">×</button>
                     </div>
                   ))}
                 </div>
@@ -351,8 +408,8 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
         </div>
 
         <footer className="modal__actions">
-          <button className="btn-ghost modal__btnCancel" onClick={onClose}>CANCELAR</button>
-          <button className="btn-primary modal__btnPrimary" onClick={submit} disabled={submitting}>
+          <button className="btn-ghost modal__btnCancel" onClick={onClose} type="button">CANCELAR</button>
+          <button className="btn-primary modal__btnPrimary" onClick={submit} disabled={submitting} type="button">
             {submitting ? "ENVIANDO..." : "AVALIAR"}
           </button>
         </footer>
@@ -366,13 +423,101 @@ const fmtDate = (v) => {
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
 };
-const diveLogPhotos = (log) =>
-  Array.isArray(log?.photos)
+
+const deepFindFirstArray = (obj, maxDepth = 4) => {
+  if (!obj || typeof obj !== "object" || maxDepth < 0) return [];
+  if (Array.isArray(obj)) return obj;
+  for (const v of Object.values(obj)) {
+    if (Array.isArray(v)) return v;
+  }
+  for (const v of Object.values(obj)) {
+    if (v && typeof v === "object") {
+      const found = deepFindFirstArray(v, maxDepth - 1);
+      if (Array.isArray(found) && found.length >= 0) return found;
+    }
+  }
+  return [];
+};
+
+const toArray = (resp) => {
+  if (Array.isArray(resp)) return resp;
+  if (Array.isArray(resp?.data)) return resp.data;
+  if (Array.isArray(resp?.comments)) return resp.comments;
+  if (Array.isArray(resp?.results)) return resp.results;
+  if (Array.isArray(resp?.docs)) return resp.docs;
+  if (Array.isArray(resp?.items)) return resp.items;
+  const deep = deepFindFirstArray(resp);
+  return Array.isArray(deep) ? deep : [];
+};
+
+const getSpotId = (c) => {
+  const candidates = [
+    c?.divingSpotId?._id, c?.divingSpot?._id, c?.spotId?._id, c?.spot?._id, c?.placeId?._id,
+    c?.divingSpotId,      c?.divingSpot,      c?.spotId,      c?.spot,      c?.placeId,      c?.place,
+  ];
+  for (const v of candidates) {
+    if (typeof v === "string" || typeof v === "number") return String(v);
+  }
+  return null;
+};
+
+const normalizeComment = (c = {}) => {
+  const spotId = getSpotId(c);
+
+  const userName =
+    c.userName ??
+    c.user?.name ??
+    ([c.user?.firstName, c.user?.lastName].filter(Boolean).join(" ") || undefined) ??
+    c.author?.name ??
+    c.username ??
+    "Mergulhador(a)";
+
+  const text =
+    c.comment ??
+    c.comments ??
+    c.text ??
+    c.description ??
+    c.note ??
+    c.notes ??
+    "";
+
+  const createdAt =
+    c.createdAt ?? c.date ?? c.created_at ?? c.updatedAt ?? c.updated_at ?? new Date().toISOString();
+
+  const stableId =
+    c._id ??
+    c.id ??
+    `c:${spotId || "spot"}|${String(userName).toLowerCase()}|${new Date(createdAt)
+      .toISOString()
+      .slice(0, 19)}|${String(text).toLowerCase().slice(0, 40)}`;
+
+  return {
+    ...c,
+    _id: stableId,
+    rating: Number(c.rating) || 0,
+    userName,
+    comment: text,
+    photos: c.photos ?? c.images ?? [],
+    createdAt,
+    __spotId: spotId,
+  };
+};
+
+const diveLogPhotos = (log) => {
+  const list = Array.isArray(log?.photos)
     ? log.photos
-        .slice(0, 4)
-        .map((p) => (p?.data && p?.contentType ? `data:${p.contentType};base64,${p.data}` : p?.url || null))
-        .filter(Boolean)
+    : Array.isArray(log?.images)
+    ? log.images
     : [];
+  return list
+    .slice(0, 4)
+    .map((p) =>
+      p?.data && p?.contentType
+        ? `data:${p.contentType};base64,${p.data}`
+        : p?.url || (typeof p === "string" ? p : null)
+    )
+    .filter(Boolean);
+};
 
 const thumbFromSpot = (s) => {
   const img = s?.image;
@@ -391,6 +536,130 @@ const shortDesc = (txt, n = 120) => {
   if (!t) return "—";
   return t.length > n ? `${t.slice(0, n - 1)}…` : t;
 };
+const uniqueById = (arr) => {
+  const seen = new Set();
+  return arr.filter((r) => {
+    const k = String(r._id || r.id);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
+
+/* ====== Persistência LOCAL (fallback) ====== */
+const LS_REVIEWS_KEY = "atl_reviews_local";
+
+function loadLocalReviews(spotId) {
+  try {
+    const all = JSON.parse(localStorage.getItem(LS_REVIEWS_KEY) || "{}");
+    const list = Array.isArray(all[spotId]) ? all[spotId] : [];
+    return list;
+  } catch {
+    return [];
+  }
+}
+function saveLocalReview(spotId, review) {
+  try {
+    const all = JSON.parse(localStorage.getItem(LS_REVIEWS_KEY) || "{}");
+    const list = Array.isArray(all[spotId]) ? all[spotId] : [];
+    all[spotId] = [review, ...list].slice(0, 200);
+    localStorage.setItem(LS_REVIEWS_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+/* ====== Extração robusta de comentários embutidos ====== */
+function extractEmbeddedComments(obj) {
+  if (!obj || typeof obj !== "object") return [];
+  const direct =
+    obj.comments ||
+    obj.reviews ||
+    obj.ratings ||
+    obj.feedbacks ||
+    obj.evaluations ||
+    obj.avaliacoes ||
+    null;
+  if (Array.isArray(direct)) return direct;
+
+  const arrays = [];
+  const visit = (x, depth = 0) => {
+    if (!x || depth > 5) return;
+    if (Array.isArray(x)) arrays.push(x);
+    else if (typeof x === "object") {
+      for (const v of Object.values(x)) visit(v, depth + 1);
+    }
+  };
+  visit(obj);
+  const candidates = arrays.filter((arr) =>
+    arr.some(
+      (it) =>
+        it && typeof it === "object" && ("rating" in it || "comment" in it || "comments" in it)
+    )
+  );
+  let best = [];
+  for (const a of candidates) if (a.length > best.length) best = a;
+  return best;
+}
+
+/* ====== GET/POST de comentários ====== */
+async function fetchCommentsForSpot(spotId, fetcher) {
+  for (const p of COMMENTS_READ_PATHS(spotId)) {
+    try {
+      if (typeof p === "string") {
+        const resp = await fetcher(p);
+        const arr = toArray(resp);
+        if (Array.isArray(arr)) {
+          console.info("[reviews] usando rota:", p);
+          return arr;
+        }
+      } else if (p?.type === "embedded") {
+        const spot = await fetcher(p.path);
+        const embedded = extractEmbeddedComments(spot) || [];
+        if (embedded.length) {
+          console.info("[reviews] usando embutido:", p.path);
+          return embedded;
+        }
+      } else if (p?.type === "embeddedList") {
+        const list = await fetcher(p.path);
+        const arr = Array.isArray(list) ? list : toArray(list);
+        const spot =
+          arr.find((s) => String(s?._id) === String(spotId)) ||
+          arr.find((s) => String(s?.id) === String(spotId));
+        const embedded = extractEmbeddedComments(spot) || [];
+        if (embedded.length) {
+          console.info("[reviews] usando embutido da lista:", p.path);
+          return embedded;
+        }
+      }
+    } catch {
+      // tenta próxima
+    }
+  }
+  return [];
+}
+
+async function postCommentOnAnyRoute(spotId, body, fetcher) {
+  if (!COMMENTS_WRITE_ENABLED) return false;
+  const extended = {
+    ...body,
+    divingSpotId: spotId,
+    divingSpot: spotId,
+    spotId: spotId,
+    spot: spotId,
+    placeId: spotId,
+    place: spotId,
+  };
+  let lastErr;
+  for (const p of COMMENTS_WRITE_PATHS(spotId)) {
+    try {
+      await fetcher(p, { method: "POST", body: extended, auth: true });
+      console.info("[reviews] POST ok em:", p);
+      return true;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error("Não encontrei rota para criar avaliação.");
+}
 
 /* =====================================================
  * Página: Locais de mergulho (explorar + cadastrar)
@@ -398,6 +667,7 @@ const shortDesc = (txt, n = 120) => {
 export default function Spots() {
   const navigate = useNavigate();
   const [user, setUser] = useState(getCurrentUser());
+  const [authReady, setAuthReady] = useState(!!user);
 
   const [spots, setSpots] = useState([]);
   const [loadingSpots, setLoadingSpots] = useState(true);
@@ -410,7 +680,6 @@ export default function Spots() {
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reviewsErr, setReviewsErr] = useState("");
 
-  // modal de avaliação
   const [reviewOpen, setReviewOpen] = useState(false);
 
   // form (cadastrar novo spot)
@@ -418,23 +687,35 @@ export default function Spots() {
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
   const [desc, setDesc] = useState("");
-  const [files, setFiles] = useState([]); // [{file, url}]
+  const { items: files, pushFiles, removeAt, setItems: setFiles } = useFileList();
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // hidrata usuário
+  const spotPhotosId = useId();
+
+  /* ==== Auth ==== */
   useEffect(() => {
-    if (!user) {
-      me()
-        .then((u) => {
-          setUser(u);
-          try { localStorage.setItem("user", JSON.stringify(u)); } catch {}
-        })
-        .catch(() => {});
+    let alive = true;
+    if (user) {
+      setAuthReady(true);
+      return () => { alive = false; };
     }
+    (async () => {
+      try {
+        const u = await me();
+        if (!alive) return;
+        setUser(u);
+        try { localStorage.setItem("user", JSON.stringify(u)); } catch {}
+      } catch {
+        // sessão inválida ou anônima
+      } finally {
+        if (alive) setAuthReady(true);
+      }
+    })();
+    return () => { alive = false; };
   }, [user]);
 
-  // busca spots
+  /* ==== Spots ==== */
   useEffect(() => {
     let active = true;
     (async () => {
@@ -452,37 +733,52 @@ export default function Spots() {
       }
     })();
     return () => { active = false; };
+  }, []); // 1x
+
+  /* ==== Helper: tenta com auth; se falhar, sem auth ==== */
+  const fetchWithAuthFallback = useCallback(async (url, options = {}) => {
+    try {
+      return await apiFetch(url, { auth: true, ...options });
+    } catch (e1) {
+      try {
+        return await apiFetch(url, { ...options, auth: false });
+      } catch (e2) {
+        throw e1 || e2;
+      }
+    }
   }, []);
 
-  // reviews do selecionado (carrega comments)
+  /* ==== Reviews ==== */
+  const loadSpotReviews = useCallback(
+    async (spotId) => {
+      const fromApi = await fetchCommentsForSpot(spotId, fetchWithAuthFallback);
+      const local = loadLocalReviews(spotId);
+      const raw = [...(fromApi || []), ...(local || [])];
+      const norm = raw
+        .map(normalizeComment)
+        .filter((c) => getSpotId(c) === String(spotId) || !getSpotId(c));
+      return uniqueById(norm);
+    },
+    [fetchWithAuthFallback]
+  );
+
   useEffect(() => {
     let active = true;
-    if (!selected?._id) { setReviews([]); return; }
+    if (!authReady) return () => { active = false; };
+    if (!selected?._id) {
+      setReviews([]);
+      return () => { active = false; };
+    }
     (async () => {
       try {
         setLoadingReviews(true);
         setReviewsErr("");
-        let data;
-        // 1) rota preferida
-        try {
-          data = await apiFetch(`/api/comments/byDivingSpotId/${selected._id}`, { auth: true });
-        } catch {
-          // 2) alternativa: pega tudo e filtra
-          try {
-            const all = await apiFetch("/api/comments", { auth: true });
-            data = (Array.isArray(all) ? all : []).filter((c) => {
-              const id = c?.divingSpotId?._id || c?.divingSpotId || c?.place;
-              return String(id) === String(selected._id);
-            });
-          } catch {
-            // 3) último fallback: manter vazio
-            data = [];
-          }
-        }
+        const arr = await loadSpotReviews(selected._id);
         if (!active) return;
-        const arr = Array.isArray(data) ? data : [];
-        arr.sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
-        setReviews(arr);
+        const sorted = (arr || []).sort(
+          (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+        );
+        setReviews(uniqueById(sorted));
       } catch (e) {
         if (active) setReviewsErr(e?.message || "Falha ao carregar avaliações.");
       } finally {
@@ -490,42 +786,23 @@ export default function Spots() {
       }
     })();
     return () => { active = false; };
-  }, [selected?._id]);
+  }, [selected?._id, loadSpotReviews, authReady]);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  /* ---------- Upload ---------- */
   const BASE = import.meta.env.BASE_URL || "/";
-  const withBase = (p) => `${BASE}${p}`;
+  const withBase = useCallback((p) => `${BASE}${p}`, [BASE]);
 
-  const handleFiles = (fileList) => {
-    const arr = Array.from(fileList || []);
-    const next = arr.map((f) => ({ file: f, url: URL.createObjectURL(f) }));
-    setFiles((prev) => [...prev, ...next]);
-  };
-  const onInputChange = (e) => handleFiles(e.target.files);
-  const onDrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
-  const onDragOver = (e) => e.preventDefault();
-  const removeFile = (idx) => {
-    setFiles((prev) => {
-      URL.revokeObjectURL(prev[idx]?.url);
-      const copy = [...prev];
-      copy.splice(idx, 1);
-      return copy;
-    });
-  };
-  useEffect(() => () => files.forEach((f) => URL.revokeObjectURL(f.url)), []); // cleanup
+  /* ==== Upload ==== */
+  const onInputChange = useCallback((e) => pushFiles(e.target.files), [pushFiles]);
+  const onDrop = useCallback((e) => { e.preventDefault(); pushFiles(e.dataTransfer.files); }, [pushFiles]);
+  const onDragOver = useCallback((e) => e.preventDefault(), []);
+  const removeFile = useCallback((idx) => removeAt(idx), [removeAt]);
 
-  /* ---------- Helpers ---------- */
   const toNum = (v) => {
     if (v === "" || v == null) return undefined;
     const n = Number(v);
     return Number.isFinite(n) ? n : undefined;
   };
-  const filesToBase64 = async (fileObjs) => {
+  const filesToBase64 = useCallback(async (fileObjs) => {
     const read = (file) =>
       new Promise((resolve, reject) => {
         const fr = new FileReader();
@@ -539,8 +816,8 @@ export default function Spots() {
         fr.readAsDataURL(file);
       });
     return Promise.all(fileObjs.map(read));
-  };
-  const fillWithGeolocation = () => {
+  }, []);
+  const fillWithGeolocation = useCallback(() => {
     if (!("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -550,14 +827,13 @@ export default function Spots() {
       () => {},
       { enableHighAccuracy: true, timeout: 8000 }
     );
-  };
+  }, []);
 
-  /* ---------- Submit novo spot ---------- */
-  const handleSubmit = async (e) => {
+  /* ==== Novo spot ==== */
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setMsg("");
     setSubmitting(true);
-
     try {
       const latNum = toNum(lat);
       const lonNum = toNum(lon);
@@ -570,10 +846,8 @@ export default function Spots() {
         setSubmitting(false);
         return;
       }
-
       const images = await filesToBase64(files.map((f) => f.file));
       const image = images[0] || undefined;
-
       const payload = {
         name: name.trim(),
         description: desc?.trim() || undefined,
@@ -582,12 +856,9 @@ export default function Spots() {
         ...(image ? { image } : {}),
         ...(images.length ? { images } : {}),
       };
-
       await apiFetch("/api/divingSpots", { method: "POST", auth: true, body: payload });
-
       setMsg("Local cadastrado com sucesso!");
       setName(""); setLat(""); setLon(""); setDesc(""); setFiles([]);
-
       try {
         const data = await apiFetch("/api/divingSpots", { auth: true });
         const arr = Array.isArray(data) ? data : [];
@@ -599,122 +870,84 @@ export default function Spots() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [desc, files, filesToBase64, lat, lon, name, setFiles]);
 
-  /* ---------- Submit avaliação (comments) ---------- */
-  const submitReview = async ({
-    rating,
-    visibility,
-    difficultyLevel,
-    comment,
-    photos,
-  }) => {
-    if (!selected?._id) return;
+  /* ==== Avaliação ==== */
+  const submitReview = useCallback(
+    async ({ rating, visibility, difficultyLevel, comment, comments, photos }) => {
+      if (!selected?._id) return;
+      const text = (comment ?? comments ?? "").trim();
 
-    // ----- INSERÇÃO OTIMISTA -----
-    const optimistic = {
-      _id: `temp-${Date.now()}`,
-      divingSpotId: selected._id,
-      rating,
-      visibility,
-      difficultyLevel,
-      comment,
-      notes: comment, // para compatibilidade com render antigo
-      photos,
-      userName: user?.name || "Você",
-      createdAt: new Date().toISOString(),
-    };
+      // inserção otimista
+      const optimistic = {
+        _id: `temp-${Date.now()}`,
+        divingSpotId: selected._id,
+        rating,
+        visibility,
+        difficultyLevel,
+        comment: text,
+        comments: text,
+        notes: text,
+        photos,
+        userName: user?.name || "Você",
+        createdAt: new Date().toISOString(),
+      };
 
-    setReviews((prev) => [optimistic, ...prev]);
-    setTab("reviews");
+      setReviews((prev) => [optimistic, ...prev]);
+      setTab("reviews");
 
-    // atualiza média/contagem do spot na lista (se usar rating no card)
-    if (rating) {
-      setSpots((prev) =>
-        prev.map((s) => {
-          if (String(s._id) !== String(selected._id)) return s;
-          const currentAvg = s.avgRating ?? s.rating ?? 0;
-          const currentCount = s.reviewsCount ?? reviews.length;
-          const newCount = currentCount + 1;
-          const newAvg = (currentAvg * currentCount + Number(rating || 0)) / newCount;
-          return { ...s, avgRating: newAvg, reviewsCount: newCount };
-        })
-      );
-    }
+      if (rating) {
+        setSpots((prev) =>
+          prev.map((s) => {
+            if (String(s._id) !== String(selected._id)) return s;
+            const currentAvg = s.avgRating ?? s.rating ?? 0;
+            const currentCount = s.reviewsCount ?? reviews.length;
+            const newCount = currentCount + 1;
+            const newAvg = (currentAvg * currentCount + Number(rating || 0)) / newCount;
+            return { ...s, avgRating: newAvg, reviewsCount: newCount };
+          })
+        );
+      }
 
-    // ----- PERSISTE NO BACKEND -----
-    try {
-      // rota preferida
-      await apiFetch("/api/comments", {
-        method: "POST",
-        auth: true,
-        body: {
-          divingSpotId: selected._id,
-          rating,
-          visibility,
-          difficultyLevel,
-          comment,
-          photos,
-        },
-      });
-    } catch {
-      // fallback para APIs alternativas
+      // persistência no servidor
       try {
-        await apiFetch(`/api/divingSpots/${selected._id}/comments`, {
-          method: "POST",
-          auth: true,
-          body: { rating, visibility, difficultyLevel, comment, photos },
-          // se sua API aceitar multipart mais tarde, dá pra adaptar aqui
-        });
+        await postCommentOnAnyRoute(
+          selected._id,
+          { rating, visibility, difficultyLevel, comment: text, comments: text, photos },
+          apiFetch
+        );
+        setMsg("Avaliação salva no servidor!");
+        // recarrega do servidor
+        try {
+          const arr = await loadSpotReviews(selected._id);
+          const normalized = (arr || []).sort(
+            (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+          );
+          setReviews((prev) => (normalized.length ? uniqueById(normalized) : prev));
+        } catch {}
       } catch (e2) {
-        setReviews((prev) => prev.filter((r) => r._id !== optimistic._id));
-        setMsg(e2?.message || "Não foi possível enviar sua avaliação.");
-        return;
+        // fallback local (mantém otimista)
+        saveLocalReview(selected._id, optimistic);
+        setMsg(e2?.message || "Não foi possível salvar no servidor. A avaliação ficará salva localmente.");
       }
-    }
+    },
+    [reviews.length, selected?._id, setSpots, setReviews, setTab, user?.name, loadSpotReviews]
+  );
 
-    // Recarrega avaliações da fonte oficial
-    try {
-      let data;
-      try {
-        data = await apiFetch(`/api/comments/byDivingSpotId/${selected._id}`, { auth: true });
-      } catch {
-        const all = await apiFetch("/api/comments", { auth: true });
-        data = (Array.isArray(all) ? all : []).filter((c) => {
-          const id = c?.divingSpotId?._id || c?.divingSpotId || c?.place;
-          return String(id) === String(selected._id);
-        });
-      }
-      const arr = Array.isArray(data) ? data : [];
-      arr.sort((a, b) => new Date(b.createdAt || b.date || 0) - new Date(a.createdAt || a.date || 0));
-      setReviews(arr);
-
-      // Recarrega spots para refletir média server-side (se houver)
-      try {
-        const freshSpots = await apiFetch("/api/divingSpots", { auth: true });
-        const freshArr = Array.isArray(freshSpots) ? freshSpots : [];
-        setSpots(freshArr);
-        const freshSel = freshArr.find((x) => String(x._id) === String(selected._id));
-        if (freshSel) setSelected(freshSel);
-      } catch {}
-    } catch {}
-  };
-
-  /* ---------- Busca/derivados ---------- */
+  /* ==== UI ==== */
   const filtered = useMemo(() => {
     const q = (query || "").trim().toLowerCase();
     if (!q) return spots;
     return spots.filter((s) => (s.name || "").toLowerCase().includes(q));
   }, [query, spots]);
 
-  const onSearchGo = () => {
+  const onSearchGo = useCallback(() => {
     if (filtered.length) {
       setSelected(filtered[0]);
       setTab("info");
     }
-  };
+  }, [filtered]);
 
-  /* ---------- UI ---------- */
   return (
     <div className="logged">
       {/* Sidebar */}
@@ -780,9 +1013,10 @@ export default function Spots() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") { e.preventDefault(); onSearchGo(); }
                     }}
+                    aria-label="Buscar local de mergulho"
                   />
                 </label>
-                <button className="spots__searchBtn" type="button" onClick={onSearchGo}>🔍</button>
+                <button className="spots__searchBtn" type="button" onClick={onSearchGo} aria-label="Buscar">🔍</button>
               </div>
 
               <div className="spots__list" role="list">
@@ -794,6 +1028,7 @@ export default function Spots() {
                       type="button"
                       className={`spots__item${selected?._id === s._id ? " is-active" : ""}`}
                       onClick={() => { setSelected(s); setTab("info"); }}
+                      aria-pressed={selected?._id === s._id}
                     >
                       <img className="spots__itemImg" src={thumbFromSpot(s)} alt="" />
                       <div className="spots__itemMeta">
@@ -824,8 +1059,8 @@ export default function Spots() {
                       <StarRating value={avgFrom(selected, reviews)} size={16} />
                     </div>
                     <div className="spots__tabs" role="tablist" aria-label="Abas">
-                      <button className={`spots__tab${tab === "info" ? " is-active" : ""}`} onClick={() => setTab("info")} role="tab" aria-selected={tab === "info"}>Informações</button>
-                      <button className={`spots__tab${tab === "reviews" ? " is-active" : ""}`} onClick={() => setTab("reviews")} role="tab" aria-selected={tab === "reviews"}>Avaliações</button>
+                      <button className={`spots__tab${tab === "info" ? " is-active" : ""}`} onClick={() => setTab("info")} role="tab" aria-selected={tab === "info"} type="button">Informações</button>
+                      <button className={`spots__tab${tab === "reviews" ? " is-active" : ""}`} onClick={() => setTab("reviews")} role="tab" aria-selected={tab === "reviews"} type="button">Avaliações</button>
                     </div>
                   </div>
 
@@ -853,7 +1088,7 @@ export default function Spots() {
                         <div className="spots__empty">Ainda não há avaliações para este ponto.</div>
                       )}
                       {!loadingReviews && !reviewsErr && reviews.map((r) => (
-                        <article key={r._id} className="spots__review">
+                        <article key={r._id || r.id} className="spots__review">
                           <header className="spots__reviewHead">
                             <div className="spots__reviewWho">
                               <div className="spots__avatar" aria-hidden>🧭</div>
@@ -864,7 +1099,9 @@ export default function Spots() {
                             </div>
                             <StarRating value={r.rating || 0} />
                           </header>
-                          {(r.comment || r.notes) && <p className="spots__reviewText">{r.comment || r.notes}</p>}
+
+                          {r.comment && <p className="spots__reviewText">{r.comment}</p>}
+
                           {diveLogPhotos(r).length > 0 && (
                             <div className="spots__reviewPics">
                               {diveLogPhotos(r).map((src, i) => (<img key={i} src={src} alt={`Foto ${i + 1}`} />))}
@@ -897,7 +1134,7 @@ export default function Spots() {
 
           {/* ======== CADASTRAR NOVO SPOT ======== */}
           {msg && (
-            <p aria-live="polite" className={`spots__msg ${msg.includes("sucesso") ? "is-ok" : "is-err"}`}>
+            <p aria-live="polite" className={`spots__msg ${msg.includes("sucesso") || msg.includes("servidor") ? "is-ok" : "is-err"}`}>
               {msg}
             </p>
           )}
@@ -929,10 +1166,11 @@ export default function Spots() {
               />
             </div>
 
-            <div className="field">
+            {/* Mantido: ocupa a linha inteira */}
+            <div className="field field--full">
               <label className="label">Imagens do local</label>
-              <input id="spotPhotos" type="file" accept="image/*" multiple hidden onChange={onInputChange} />
-              <label htmlFor="spotPhotos" className="dropzone dropzone--clickable" onDrop={onDrop} onDragOver={onDragOver}>
+              <input id={spotPhotosId} type="file" accept="image/*" multiple hidden onChange={onInputChange} />
+              <label htmlFor={spotPhotosId} className="dropzone dropzone--clickable" onDrop={onDrop} onDragOver={onDragOver} aria-label="Enviar imagens do local">
                 <div className="dropzone__inner">
                   <PublicImg
                     candidates={[

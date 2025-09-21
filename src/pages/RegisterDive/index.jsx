@@ -1,10 +1,214 @@
 // src/pages/RegisterDive/index.jsx
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useDraftField } from "./useDiveDraft";
+import { apiFetch } from "../../services/api";
 
 import "../Logged/logged.css";
 import "./register-dive.css";
+
+/* ================================
+ * Autocomplete de "Local de mergulho"
+ * ================================ */
+function AutocompletePlace({
+  value,
+  onChangeText,
+  onSelect,             // recebe (spot) ou (null) se livre
+  onCreateNew,          // clicar em "Não achou..."
+  onMatchChange,        // <<< NOVO: (isExactMatch:boolean, spot|null)
+  placeholder = "Cidade / Ponto",
+  inputId = "local",
+}) {
+  const [open, setOpen] = useState(false);
+  const [allSpots, setAllSpots] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [highlight, setHighlight] = useState(-1);
+  const boxRef = useRef(null);
+  const listId = "place-suggestions";
+
+  // carrega os spots quando o campo recebe foco (uma vez)
+  const ensureLoad = async () => {
+    if (allSpots.length || loading) return;
+    try {
+      setLoading(true);
+      const data = await apiFetch("/api/divingSpots", { auth: true });
+      setAllSpots(Array.isArray(data) ? data : []);
+    } catch {
+      setAllSpots([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // fecha ao clicar fora
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (!boxRef.current) return;
+      if (!boxRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = (value || "").trim().toLowerCase();
+    if (!q) return allSpots.slice(0, 8);
+    return allSpots
+      .filter((s) => (s.name || "").toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [value, allSpots]);
+
+  const hasResults = filtered.length > 0;
+
+  // Match exato (para validar antes de avançar)
+  const exactSpot = useMemo(() => {
+    const q = (value || "").trim().toLowerCase();
+    if (!q) return null;
+    if (loading || !allSpots.length) return null; // aguarda carregar para validar
+    return allSpots.find((s) => (s.name || "").toLowerCase() === q) || null;
+  }, [value, allSpots, loading]);
+
+  const notFound = Boolean((value || "").trim()) && !exactSpot;
+
+  // Notifica o pai sempre que o match mudar
+  useEffect(() => {
+    onMatchChange?.(!!exactSpot, exactSpot);
+  }, [exactSpot, onMatchChange]);
+
+  const handleKeyDown = (e) => {
+    if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      setOpen(true);
+      return;
+    }
+    if (!open) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlight((h) => Math.min(h + 1, filtered.length)); // inclui o item "criar"
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, -1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      // último índice é o CTA "criar"
+      if (highlight === filtered.length) {
+        onCreateNew?.();
+        setOpen(false);
+        return;
+      }
+      if (highlight >= 0 && filtered[highlight]) {
+        const s = filtered[highlight];
+        onChangeText?.(s.name || "");
+        onSelect?.(s);
+        onMatchChange?.(true, s); // garante estado válido
+        setOpen(false);
+      } else {
+        // enter com texto livre
+        onSelect?.(null);
+        onMatchChange?.(false, null);
+        setOpen(false);
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="auto" ref={boxRef} data-notfound={notFound || undefined}>
+      <input
+        id={inputId}
+        name={inputId}
+        type="text"
+        className="input"
+        placeholder={placeholder}
+        autoComplete="off"
+        value={value}
+        onChange={(e) => {
+          onChangeText?.(e.target.value);
+          if (!open) setOpen(true);
+        }}
+        onFocus={() => {
+          setOpen(true);
+          ensureLoad();
+        }}
+        onKeyDown={handleKeyDown}
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={
+          highlight >= 0
+            ? `opt-${filtered[highlight]?._id || "create"}`
+            : undefined
+        }
+        aria-invalid={notFound ? true : undefined}
+        required
+      />
+
+      {open && (
+        <div className="auto__panel" role="listbox" id={listId}>
+          {loading && <div className="auto__item is-muted">Carregando locais…</div>}
+
+          {!loading && hasResults && (
+            <>
+              {filtered.map((s, i) => (
+                <button
+                  key={s._id}
+                  id={`opt-${s._id}`}
+                  type="button"
+                  role="option"
+                  aria-selected={highlight === i}
+                  className={`auto__item${highlight === i ? " is-active" : ""}`}
+                  onMouseEnter={() => setHighlight(i)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onChangeText?.(s.name || "");
+                    onSelect?.(s);
+                    onMatchChange?.(true, s);
+                    setOpen(false);
+                  }}
+                  title={s.name}
+                >
+                  <span className="auto__title">{s.name || "Ponto de mergulho"}</span>
+                  {typeof s.avgRating === "number" && (
+                    <small className="auto__sub">⭐ {s.avgRating.toFixed(1)}</small>
+                  )}
+                </button>
+              ))}
+            </>
+          )}
+
+          {!loading && (
+            <button
+              id="opt-create"
+              type="button"
+              role="option"
+              aria-selected={highlight === filtered.length}
+              className={`auto__item auto__create${
+                highlight === filtered.length ? " is-active" : ""
+              }`}
+              onMouseEnter={() => setHighlight(filtered.length)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onCreateNew?.();
+                setOpen(false);
+              }}
+            >
+              Não achou o local? <u>Clica aqui para criar!</u>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Aviso abaixo do campo quando não há match exato */}
+      {notFound && (
+        <p className="field__error" role="status" aria-live="polite">
+          local de mergulho não encontrado
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function RegisterDive() {
   const navigate = useNavigate();
@@ -12,8 +216,11 @@ export default function RegisterDive() {
   // campos persistentes da etapa 1
   const [title, setTitle]       = useDraftField("title", "");
   const [place, setPlace]       = useDraftField("place", "");
-  const [date, setDate]         = useDraftField("date", "");      // yyyy-mm-dd
+  const [date, setDate]         = useDraftField("date", "");          // yyyy-mm-dd
   const [diveType, setDiveType] = useDraftField("diveType", "costa"); // 'costa' | 'barco' | 'outros'
+
+  // controle de validade do "Local de Mergulho"
+  const [placeValid, setPlaceValid] = useState(false);
 
   // erro local do formulário (não persiste)
   const [formErr, setFormErr] = useState("");
@@ -25,6 +232,11 @@ export default function RegisterDive() {
       setFormErr("Preencha Título, Local e Data para continuar.");
       return;
     }
+    if (!placeValid) {
+      setFormErr("Local de mergulho não encontrado. Se preferir, crie em 'Locais de mergulho'.");
+      return;
+    }
+
     setFormErr("");
     navigate("/logged/registrar-mergulho/Step2");
   };
@@ -39,6 +251,9 @@ export default function RegisterDive() {
       <span>{label}</span>
     </NavLink>
   );
+
+  const nextDisabled =
+    !title.trim() || !place.trim() || !date || !placeValid;
 
   return (
     <div className="logged">
@@ -138,16 +353,16 @@ export default function RegisterDive() {
               <div className="field">
                 <label className="label" htmlFor="local">Local de Mergulho</label>
                 <span className="hint">Onde você mergulhou?</span>
-                <input
-                  id="local"
-                  name="local"
-                  type="text"
-                  className="input"
-                  placeholder="Cidade / Ponto"
-                  autoComplete="off"
-                  required
+
+                {/* Autocomplete */}
+                <AutocompletePlace
+                  inputId="local"
                   value={place}
-                  onChange={(e) => setPlace(e.target.value)}
+                  onChangeText={setPlace}
+                  onSelect={() => {/* opcional: guardar id se quiser */}}
+                  onCreateNew={() => navigate("/logged/locais")}
+                  onMatchChange={(ok/* boolean */, spot) => setPlaceValid(ok)}  // <<< NOVO
+                  placeholder="Cidade / Ponto"
                 />
               </div>
 
@@ -194,7 +409,7 @@ export default function RegisterDive() {
 
             {/* Ações */}
             <div className="form-actions">
-              <button className="btn-primary" type="submit">
+              <button className="btn-primary" type="submit" disabled={nextDisabled}>
                 PRÓXIMA ETAPA
               </button>
             </div>
