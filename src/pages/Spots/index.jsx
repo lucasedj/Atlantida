@@ -46,10 +46,10 @@ const COMMENTS_WRITE_PATHS = () => [`/api/comments`];
 /* ---------- Img fallback ---------- */
 function PublicImg({ candidates, alt = "", className = "", style }) {
   const [idx, setIdx] = useState(0);
-  const src = candidates[Math.min(idx, candidates.length - 1)];
   const onError = useCallback(() => {
     setIdx((i) => (i < candidates.length - 1 ? i + 1 : i));
   }, [candidates.length]);
+  const src = candidates[Math.min(idx, candidates.length - 1)] || "";
   return (
     <img src={src} alt={alt} className={className} style={style} onError={onError} />
   );
@@ -60,13 +60,19 @@ function StarRating({ value = 0, size = 14 }) {
   const v = Math.max(0, Math.min(5, Number(value) || 0));
   const rounded = Math.round(v);
   return (
-    <span className="stars" style={{ fontSize: size }}>
+    <span
+      className="stars"
+      style={{ fontSize: size }}
+      role="img"
+      aria-label={v ? `Nota ${v.toFixed(1)} de 5` : "Sem nota"}
+      title={v ? `${v.toFixed(1)}/5` : "Sem nota"}
+    >
       {"★★★★★".split("").map((_, i) => (
         <span key={i} className={i < rounded ? "on" : ""} aria-hidden>
           ★
         </span>
       ))}
-      <span className="stars__val" aria-label={`Nota ${v ? v.toFixed(1) : "indisponível"}`}>
+      <span className="stars__val" aria-hidden>
         {v ? v.toFixed(1) : "—"}
       </span>
     </span>
@@ -74,34 +80,47 @@ function StarRating({ value = 0, size = 14 }) {
 }
 
 /* =========================================
- * Leaflet loader (CDN)
+ * Leaflet loader (CDN) — singleton e seguro p/ SSR
  * ========================================= */
-const ensureLeaflet = () =>
-  new Promise((resolve, reject) => {
-    if (window.L) return resolve(window.L);
-    const cssId = "leaflet-css";
-    if (!document.getElementById(cssId)) {
-      const link = document.createElement("link");
-      link.id = cssId;
-      link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
+let _leafletPromise = null;
+const ensureLeaflet = () => {
+  if (typeof window === "undefined") return Promise.reject(new Error("No window"));
+  if (window.L) return Promise.resolve(window.L);
+  if (_leafletPromise) return _leafletPromise;
+
+  _leafletPromise = new Promise((resolve, reject) => {
+    try {
+      const cssId = "leaflet-css";
+      if (!document.getElementById(cssId)) {
+        const link = document.createElement("link");
+        link.id = cssId;
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        link.crossOrigin = "";
+        document.head.appendChild(link);
+      }
+
+      const jsId = "leaflet-js";
+      const existing = document.getElementById(jsId);
+      if (existing) {
+        existing.addEventListener("load", () => resolve(window.L));
+        existing.addEventListener("error", reject);
+        return;
+      }
+      const script = document.createElement("script");
+      script.id = jsId;
+      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.async = true;
+      script.onload = () => resolve(window.L);
+      script.onerror = reject;
+      document.body.appendChild(script);
+    } catch (e) {
+      reject(e);
     }
-    const jsId = "leaflet-js";
-    const existing = document.getElementById(jsId);
-    if (existing) {
-      existing.addEventListener("load", () => resolve(window.L));
-      existing.addEventListener("error", reject);
-      return;
-    }
-    const script = document.createElement("script");
-    script.id = jsId;
-    script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    script.async = true;
-    script.onload = () => resolve(window.L);
-    script.onerror = reject;
-    document.body.appendChild(script);
   });
+
+  return _leafletPromise;
+};
 
 /* =========================================
  * Mapa de Spots
@@ -117,11 +136,12 @@ const SpotsMap = memo(function SpotsMap({
   const markersLayerRef = useRef(null);
   const pickMarkerRef = useRef(null);
 
+  // init
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const L = await ensureLeaflet();
-      if (cancelled || mapRef.current) return;
+      const L = await ensureLeaflet().catch(() => null);
+      if (!L || cancelled || mapRef.current) return;
 
       const map = L.map(mapEl.current, {
         center: [-14.235, -51.925],
@@ -132,7 +152,7 @@ const SpotsMap = memo(function SpotsMap({
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 18,
+        maxZoom: 19,
       }).addTo(map);
 
       L.control.zoom({ position: "bottomright" }).addTo(map);
@@ -157,39 +177,42 @@ const SpotsMap = memo(function SpotsMap({
     };
   }, [onPickLatLon]);
 
+  // draw markers
   useEffect(() => {
     (async () => {
-      const L = await ensureLeaflet();
+      const L = await ensureLeaflet().catch(() => null);
       const map = mapRef.current;
       const layer = markersLayerRef.current;
-      if (!map || !layer) return;
+      if (!L || !map || !layer) return;
 
       layer.clearLayers();
-      const bounds = L.latLngBounds();
+      if (!spots.length) return;
 
+      const bounds = L.latLngBounds();
       spots.forEach((s) => {
         const [lon, lat] = s?.location?.coordinates || [];
-        if (typeof lat === "number" && typeof lon === "number") {
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
           const m = L.marker([lat, lon]).addTo(layer);
           m.on("click", () => onSelectSpot?.(s));
           bounds.extend([lat, lon]);
-          if (String(s._id) === String(selectedId)) setTimeout(() => m.openPopup(), 0);
           const title = s.name || "Ponto de mergulho";
           const ratingTxt =
             typeof s.avgRating === "number" ? `⭐ ${s.avgRating.toFixed(1)}` : "";
           m.bindPopup(`<strong>${title}</strong><br/>${ratingTxt}`);
+          if (String(s._id) === String(selectedId)) setTimeout(() => m.openPopup(), 0);
         }
       });
 
-      if (spots.length > 0 && bounds.isValid()) map.fitBounds(bounds.pad(0.2));
+      if (bounds.isValid()) map.fitBounds(bounds.pad(0.2));
     })();
   }, [spots, selectedId, onSelectSpot]);
 
+  // focus selected
   useEffect(() => {
     if (!selectedId || !mapRef.current) return;
     const s = spots.find((x) => String(x._id) === String(selectedId));
     const [lon, lat] = s?.location?.coordinates || [];
-    if (typeof lat === "number" && typeof lon === "number") {
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
       mapRef.current.setView([lat, lon], Math.max(mapRef.current.getZoom(), 7), {
         animate: true,
       });
@@ -260,9 +283,15 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
   const onInputChange = useCallback((e) => pushFiles(e.target.files), [pushFiles]);
   const onDrop = useCallback((e) => { e.preventDefault(); pushFiles(e.dataTransfer.files); }, [pushFiles]);
   const onDragOver = useCallback((e) => e.preventDefault(), []);
+
   const filesToBase64 = useCallback(async (fileObjs) => {
     const read = (file) =>
       new Promise((resolve, reject) => {
+        // Rejeita arquivos extremamente grandes (>100MB) por segurança
+        if (file.size > 100 * 1024 * 1024) {
+          reject(new Error(`Arquivo muito grande: ${file.name}`));
+          return;
+        }
         const fr = new FileReader();
         fr.onload = () => {
           const result = String(fr.result || "");
@@ -352,6 +381,12 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
                     onMouseEnter={() => setHover(n)}
                     onMouseLeave={() => setHover(0)}
                     onClick={() => setRating(n)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setRating(n);
+                      }
+                    }}
                     aria-label={`${n} estrela${n > 1 ? "s" : ""}`}
                   >
                     ★
@@ -362,13 +397,14 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
               <div className="modal__fieldBlock">
                 <div className="modal__label">Visibilidade</div>
                 <div className="modal__sublabel">Como estava a visibilidade?</div>
-                <div className="segmented">
+                <div className="segmented" role="radiogroup" aria-label="Visibilidade">
                   {["ALTO", "MODERADO", "BAIXO"].map((v) => (
                     <button
                       key={v}
                       type="button"
                       className={`segmented__btn${visibility === v ? " is-on" : ""}`}
                       onClick={() => setVisibility(visibility === v ? "" : v)}
+                      aria-pressed={visibility === v}
                     >
                       {v}
                     </button>
@@ -379,13 +415,14 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
               <div className="modal__fieldBlock">
                 <div className="modal__label">Nível de mergulho</div>
                 <div className="modal__sublabel">Como você entrou na água?</div>
-                <div className="segmented">
+                <div className="segmented" role="radiogroup" aria-label="Nível de mergulho">
                   {["ALTO", "MODERADO", "BAIXO"].map((v) => (
                     <button
                       key={v}
                       type="button"
                       className={`segmented__btn${level === v ? " is-on" : ""}`}
                       onClick={() => setLevel(level === v ? "" : v)}
+                      aria-pressed={level === v}
                     >
                       {v}
                     </button>
@@ -446,6 +483,7 @@ const toArray = (resp) => {
   if (Array.isArray(resp?.results)) return resp.results;
   if (Array.isArray(resp?.docs)) return resp.docs;
   if (Array.isArray(resp?.items)) return resp.items;
+  if (Array.isArray(resp?.data?.docs)) return resp.data.docs;
   const deep = deepFindFirstArray(resp);
   return Array.isArray(deep) ? deep : [];
 };
@@ -461,25 +499,49 @@ const getSpotId = (c) => {
   return null;
 };
 
+/* ---------- User helpers e normalização ---------- */
+const getUserIdFrom = (c = {}) => {
+  const candidates = [
+    c.userId, c.authorId, c.createdById, c.created_by, c.ownerId,
+    typeof c.user === "string" ? c.user : null,
+    typeof c.author === "string" ? c.author : null,
+    typeof c.createdBy === "string" ? c.createdBy : null,
+    typeof c.owner === "string" ? c.owner : null,
+    c.user?._id,       c.user?.id,
+    c.author?._id,     c.author?.id,
+    c.createdBy?._id,  c.createdBy?.id,
+    c.owner?._id,      c.owner?.id,
+  ].filter(Boolean);
+
+  for (const v of candidates) {
+    if (typeof v === "string" || typeof v === "number") return String(v);
+  }
+  return null;
+};
+
+const pickBestUserName = (c = {}) => {
+  const tries = [
+    c.userName, c.name, c.displayName, c.fullName, c.username,
+    c.user?.name,
+    [c.user?.firstName, c.user?.lastName].filter(Boolean).join(" "),
+    c.author?.name, c.createdBy?.name, c.owner?.name,
+    c.account?.name, c.profile?.name,
+    c.user?.username, c.author?.username, c.createdBy?.username,
+  ].filter(Boolean);
+  for (const t of tries) {
+    const v = String(t).trim();
+    if (v) return v;
+  }
+  return null;
+};
+
 const normalizeComment = (c = {}) => {
   const spotId = getSpotId(c);
-
-  const userName =
-    c.userName ??
-    c.user?.name ??
-    ([c.user?.firstName, c.user?.lastName].filter(Boolean).join(" ") || undefined) ??
-    c.author?.name ??
-    c.username ??
-    "Mergulhador(a)";
+  const userId = getUserIdFrom(c);
+  const userName = pickBestUserName(c) ?? null;
 
   const text =
-    c.comment ??
-    c.comments ??
-    c.text ??
-    c.description ??
-    c.note ??
-    c.notes ??
-    "";
+    c.comment ?? c.comments ?? c.text ?? c.description ?? c.note ?? c.notes ?? "";
 
   const createdAt =
     c.createdAt ?? c.date ?? c.created_at ?? c.updatedAt ?? c.updated_at ?? new Date().toISOString();
@@ -487,7 +549,7 @@ const normalizeComment = (c = {}) => {
   const stableId =
     c._id ??
     c.id ??
-    `c:${spotId || "spot"}|${String(userName).toLowerCase()}|${new Date(createdAt)
+    `c:${spotId || "spot"}|${String(userId || userName || "anon").toLowerCase()}|${new Date(createdAt)
       .toISOString()
       .slice(0, 19)}|${String(text).toLowerCase().slice(0, 40)}`;
 
@@ -496,6 +558,7 @@ const normalizeComment = (c = {}) => {
     _id: stableId,
     rating: Number(c.rating) || 0,
     userName,
+    userId,
     comment: text,
     photos: c.photos ?? c.images ?? [],
     createdAt,
@@ -601,25 +664,26 @@ function extractEmbeddedComments(obj) {
 }
 
 /* ====== GET/POST de comentários ====== */
-async function fetchCommentsForSpot(spotId, fetcher) {
+async function fetchCommentsForSpot(spotId, fetcher, signal) {
   for (const p of COMMENTS_READ_PATHS(spotId)) {
     try {
+      if (signal?.aborted) break;
       if (typeof p === "string") {
-        const resp = await fetcher(p);
+        const resp = await fetcher(p, { signal });
         const arr = toArray(resp);
         if (Array.isArray(arr)) {
           console.info("[reviews] usando rota:", p);
           return arr;
         }
       } else if (p?.type === "embedded") {
-        const spot = await fetcher(p.path);
+        const spot = await fetcher(p.path, { signal });
         const embedded = extractEmbeddedComments(spot) || [];
         if (embedded.length) {
           console.info("[reviews] usando embutido:", p.path);
           return embedded;
         }
       } else if (p?.type === "embeddedList") {
-        const list = await fetcher(p.path);
+        const list = await fetcher(p.path, { signal });
         const arr = Array.isArray(list) ? list : toArray(list);
         const spot =
           arr.find((s) => String(s?._id) === String(spotId)) ||
@@ -630,7 +694,8 @@ async function fetchCommentsForSpot(spotId, fetcher) {
           return embedded;
         }
       }
-    } catch {
+    } catch (e) {
+      if (e?.name === "AbortError") break; // cancelado
       // tenta próxima
     }
   }
@@ -715,26 +780,6 @@ export default function Spots() {
     return () => { alive = false; };
   }, [user]);
 
-  /* ==== Spots ==== */
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        setLoadingSpots(true);
-        const data = await apiFetch("/api/divingSpots", { auth: true });
-        if (!active) return;
-        const arr = Array.isArray(data) ? data : [];
-        setSpots(arr);
-        if (arr.length && !selected) setSelected(arr[0]);
-      } catch {
-        if (active) setSpots([]);
-      } finally {
-        if (active) setLoadingSpots(false);
-      }
-    })();
-    return () => { active = false; };
-  }, []); // 1x
-
   /* ==== Helper: tenta com auth; se falhar, sem auth ==== */
   const fetchWithAuthFallback = useCallback(async (url, options = {}) => {
     try {
@@ -748,10 +793,95 @@ export default function Spots() {
     }
   }, []);
 
+  /* ==== Spots ==== */
+  useEffect(() => {
+    const ac = new AbortController();
+    let active = true;
+    (async () => {
+      try {
+        setLoadingSpots(true);
+        const data = await apiFetch("/api/divingSpots", { auth: true, signal: ac.signal });
+        if (!active) return;
+        const arr = Array.isArray(data) ? data : [];
+        setSpots(arr);
+        if (arr.length && !selected) setSelected(arr[0]);
+      } catch (e) {
+        if (active) setSpots([]);
+      } finally {
+        if (active) setLoadingSpots(false);
+      }
+    })();
+    return () => {
+      active = false;
+      ac.abort();
+    };
+  }, []); // 1x
+
+  /* ==== Cache p/ nomes de usuários e hidratação ==== */
+  const userNameCacheRef = useRef(new Map()); // id -> name|null
+
+  const fetchUserNameById = useCallback(
+    async (id, signal) => {
+      if (!id) return null;
+      if (userNameCacheRef.current.has(id)) return userNameCacheRef.current.get(id);
+
+      const candidatePaths = [
+        `/api/users/${id}`,
+        `/api/user/${id}`,
+        `/api/users/find/${id}`,
+        `/api/users/by-id/${id}`,
+        `/api/users/get/${id}`,
+        `/api/users?id=${encodeURIComponent(id)}`,
+      ];
+
+      for (const p of candidatePaths) {
+        try {
+          const u = await fetchWithAuthFallback(p, { auth: true, signal });
+          const name =
+            u?.name ||
+            [u?.firstName, u?.lastName].filter(Boolean).join(" ") ||
+            u?.username ||
+            u?.displayName ||
+            u?.fullName ||
+            null;
+          if (name) {
+            userNameCacheRef.current.set(id, name);
+            return name;
+          }
+        } catch (e) {
+          if (e?.name === "AbortError") return null;
+        }
+      }
+      userNameCacheRef.current.set(id, null);
+      return null;
+    },
+    [fetchWithAuthFallback]
+  );
+
+  const hydrateReviewUserNames = useCallback(
+    async (list, signal) => {
+      const toResolve = list.filter((r) => !r.userName && r.userId);
+      if (!toResolve.length) return;
+
+      const pairs = await Promise.all(
+        toResolve.map(async (r) => [r._id, await fetchUserNameById(r.userId, signal)])
+      );
+
+      setReviews((prev) =>
+        prev.map((r) => {
+          const pair = pairs.find(([rid]) => String(rid) === String(r._id));
+          if (pair && pair[1]) return { ...r, userName: pair[1] };
+          return r;
+        })
+      );
+    },
+    [fetchUserNameById]
+  );
+
   /* ==== Reviews ==== */
   const loadSpotReviews = useCallback(
-    async (spotId) => {
-      const fromApi = await fetchCommentsForSpot(spotId, fetchWithAuthFallback);
+    async (spotId, signal) => {
+      const fromApi = await fetchCommentsForSpot(spotId, fetchWithAuthFallback, signal);
       const local = loadLocalReviews(spotId);
       const raw = [...(fromApi || []), ...(local || [])];
       const norm = raw
@@ -763,30 +893,35 @@ export default function Spots() {
   );
 
   useEffect(() => {
+    const ac = new AbortController();
     let active = true;
-    if (!authReady) return () => { active = false; };
+    if (!authReady) return () => { ac.abort(); active = false; };
     if (!selected?._id) {
       setReviews([]);
-      return () => { active = false; };
+      return () => { ac.abort(); active = false; };
     }
     (async () => {
       try {
         setLoadingReviews(true);
         setReviewsErr("");
-        const arr = await loadSpotReviews(selected._id);
+        const arr = await loadSpotReviews(selected._id, ac.signal);
         if (!active) return;
         const sorted = (arr || []).sort(
           (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
         );
-        setReviews(uniqueById(sorted));
+        const uniq = uniqueById(sorted);
+        setReviews(uniq);
+        // hidrata nomes que estiverem faltando
+        hydrateReviewUserNames(uniq, ac.signal);
       } catch (e) {
-        if (active) setReviewsErr(e?.message || "Falha ao carregar avaliações.");
+        if (active && e?.name !== "AbortError")
+          setReviewsErr(e?.message || "Falha ao carregar avaliações.");
       } finally {
         if (active) setLoadingReviews(false);
       }
     })();
-    return () => { active = false; };
-  }, [selected?._id, loadSpotReviews, authReady]);
+    return () => { active = false; ac.abort(); };
+  }, [selected?._id, loadSpotReviews, authReady, hydrateReviewUserNames]);
 
   const BASE = import.meta.env.BASE_URL || "/";
   const withBase = useCallback((p) => `${BASE}${p}`, [BASE]);
@@ -805,6 +940,10 @@ export default function Spots() {
   const filesToBase64 = useCallback(async (fileObjs) => {
     const read = (file) =>
       new Promise((resolve, reject) => {
+        if (file.size > 100 * 1024 * 1024) {
+          reject(new Error(`Arquivo muito grande: ${file.name}`));
+          return;
+        }
         const fr = new FileReader();
         fr.onload = () => {
           const result = String(fr.result || "");
@@ -889,7 +1028,12 @@ export default function Spots() {
         comments: text,
         notes: text,
         photos,
-        userName: user?.name || "Você",
+        userName:
+          user?.name ||
+          [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+          user?.username ||
+          "Você",
+        userId: user?._id || user?.id || user?.userId || null,
         createdAt: new Date().toISOString(),
       };
 
@@ -913,17 +1057,35 @@ export default function Spots() {
       try {
         await postCommentOnAnyRoute(
           selected._id,
-          { rating, visibility, difficultyLevel, comment: text, comments: text, photos },
+          {
+            rating,
+            visibility,
+            difficultyLevel,
+            comment: text,
+            comments: text,
+            photos,
+            userId: user?._id || user?.id || user?.userId || undefined,
+            userName:
+              user?.name ||
+              [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+              user?.username ||
+              undefined,
+          },
           apiFetch
         );
         setMsg("Avaliação salva no servidor!");
         // recarrega do servidor
         try {
-          const arr = await loadSpotReviews(selected._id);
+          const ac = new AbortController();
+          const arr = await loadSpotReviews(selected._id, ac.signal);
           const normalized = (arr || []).sort(
             (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
           );
-          setReviews((prev) => (normalized.length ? uniqueById(normalized) : prev));
+          const uniq = normalized.length ? uniqueById(normalized) : null;
+          if (uniq) {
+            setReviews(uniq);
+            hydrateReviewUserNames(uniq, ac.signal);
+          }
         } catch {}
       } catch (e2) {
         // fallback local (mantém otimista)
@@ -931,7 +1093,19 @@ export default function Spots() {
         setMsg(e2?.message || "Não foi possível salvar no servidor. A avaliação ficará salva localmente.");
       }
     },
-    [reviews.length, selected?._id, setSpots, setReviews, setTab, user?.name, loadSpotReviews]
+    [
+      reviews.length,
+      selected?._id,
+      setSpots,
+      setReviews,
+      setTab,
+      user?.name,
+      loadSpotReviews,
+      hydrateReviewUserNames,
+      user?._id,
+      user?.id,
+      user?.userId,
+    ]
   );
 
   /* ==== UI ==== */
@@ -1007,7 +1181,7 @@ export default function Spots() {
                   </svg>
                   <input
                     type="search"
-                    placeholder=""
+                    placeholder="Buscar locais…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={(e) => {
@@ -1093,7 +1267,19 @@ export default function Spots() {
                             <div className="spots__reviewWho">
                               <div className="spots__avatar" aria-hidden>🧭</div>
                               <div>
-                                <div className="spots__reviewName">{r.userName || "Mergulhador(a)"}</div>
+                                <div className="spots__reviewName">
+                                  {r.userName ||
+                                   r.name ||
+                                   r.displayName ||
+                                   r.fullName ||
+                                   r?.user?.name ||
+                                   [r?.user?.firstName, r?.user?.lastName].filter(Boolean).join(" ") ||
+                                   r?.author?.name ||
+                                   r?.createdBy?.name ||
+                                   r?.owner?.name ||
+                                   r?.username ||
+                                   "Mergulhador(a)"}
+                                </div>
                                 <div className="spots__reviewDate">{fmtDate(r.createdAt || r.date)}</div>
                               </div>
                             </div>
