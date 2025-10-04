@@ -668,15 +668,6 @@ textarea.input{ min-height:7.5rem; padding-top:.625rem; padding-bottom:.625rem; 
   -webkit-overflow-scrolling: touch;
 }
 
-/* empurra o conteúdo para a direita da barra fixa */
-.logged__content{
-  grid-column: 2 / 3 !important;
-  margin-left: var(--sidebar-w) !important; /* reserva o espaço da sidebar */
-  padding-left: var(--sp-2);
-  min-width: 0;
-  position: relative;
-}
-
 /* evita que algum wrapper mate o fixed */
 .page, .page.dash, .logged__content{
   overflow: visible !important;
