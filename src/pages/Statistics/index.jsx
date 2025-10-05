@@ -2,6 +2,19 @@ import React from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import "./statistics.css"; // certifique-se de usar o CSS certo
 
+const MenuItem = ({ to, icon, children, end }) => (
+  <NavLink
+    to={to}
+    end={end}
+    className={({ isActive }) =>
+      isActive ? "logged__item active" : "logged__item"
+    }
+  >
+    <img src={icon} alt="" className="logged__icon" aria-hidden />
+    <span>{children}</span>
+  </NavLink>
+);
+
 const Sidebar = () => {
   const navigate = useNavigate();
 
@@ -10,80 +23,40 @@ const Sidebar = () => {
     navigate("/login");
   };
 
-  const MenuItem = ({ to, icon, children, end }) => (
-    <NavLink
-      to={to}
-      end={end}
-      className={({ isActive }) =>
-        isActive ? "logged__item active" : "logged__item"
-      }
-    >
-      <img src={icon} alt="" className="logged__icon" aria-hidden />
-      <span>{children}</span>
-    </NavLink>
-  );
-
-  return (
-    <aside className="logged__sidebar" aria-label="Navegação principal">
-      <div className="logged__brand">
-        <img
-          src="/images/logo-atlantida-branca.png"
-          alt="Atlântida"
-          className="logged__logoImg"
-        />
-      </div>
-
-      <nav className="logged__nav" aria-label="Navegação principal">
-        <MenuItem end to="/logged" icon="/images/mini-icon/início.png">
-          Início
-        </MenuItem>
-        <MenuItem to="/logged/estatisticas" icon="/images/mini-icon/estatística.png">
-          Estatísticas
-        </MenuItem>
-        <MenuItem to="/logged/locais" icon="/images/mini-icon/locais-de-mergulho.png">
-          Locais de mergulho
-        </MenuItem>
-        <MenuItem to="/logged/certificados" icon="/images/mini-icon/certificados.png">
-          Certificados
-        </MenuItem>
-        <MenuItem to="/logged/perfil" icon="/images/mini-icon/perfil.png">
-          Perfil do usuário
-        </MenuItem>
-      </nav>
-
-      <div className="logged__card" aria-label="Atalho para registrar mergulho">
-        <div className="logged__cardMedia">
-          <img src="/images/logo-mergulho.png" alt="" aria-hidden />
-        </div>
-        <Link
-          to="/logged/registrar-mergulho"
-          className="logged__primaryBtn"
-          role="button"
-        >
-          <span className="logged__plus" aria-hidden>
-            ＋
-          </span>
-          Registrar mergulho
-        </Link>
-      </div>
-
-      <button type="button" className="logged__logout" onClick={handleLogout}>
-        <img
-          src="/images/mini-icon/Sair.png"
-          alt=""
-          className="logged__icon"
-          aria-hidden
-        />
-        <span>Sair do sistema</span>
-      </button>
-    </aside>
-  );
-};
-
-const StatisticsPage = () => {
   return (
     <div className="logged"> {/* Container geral para grid layout */}
-      <Sidebar />
+      <aside className="logged__sidebar">
+        <div className="logged__brand">
+          <img
+            src="/images/logo-atlantida-branca.png"
+            alt="Atlântida"
+            className="logged__logoImg"
+          />
+        </div>
+
+        <nav className="logged__nav" aria-label="Navegação principal">
+          <MenuItem end to="/logged" icon="/images/mini-icon/início.png">Início</MenuItem>
+          <MenuItem to="/logged/estatisticas" icon="/images/mini-icon/estatística.png">Estatísticas</MenuItem>
+          <MenuItem to="/logged/locais" icon="/images/mini-icon/locais-de-mergulho.png">Locais de mergulho</MenuItem>
+          <MenuItem to="/logged/certificados" icon="/images/mini-icon/certificados.png">Certificados</MenuItem>
+          <MenuItem to="/logged/perfil" icon="/images/mini-icon/perfil.png">Perfil do usuário</MenuItem>
+        </nav>
+
+        <div className="logged__card" aria-label="Atalho para registrar mergulho">
+          <div className="logged__cardMedia">
+            <img src="/images/logo-mergulho.png" alt="" aria-hidden />
+          </div>
+          <Link to="/logged/registrar-mergulho" className="logged__primaryBtn" role="button">
+            <span className="logged__plus" aria-hidden>＋</span>
+            Registrar mergulho
+          </Link>
+        </div>
+
+        <button type="button" className="logged__logout" onClick={handleLogout}>
+          <img src="/images/mini-icon/Sair.png" alt="" className="logged__icon" aria-hidden />
+          <span>Sair do sistema</span>
+        </button>
+      </aside>
 
       <main className="logged__main">
         {/* Conteúdo: Estatísticas */}
@@ -149,4 +122,4 @@ const StatisticsPage = () => {
   );
 };
 
-export default StatisticsPage;
+export default Sidebar;
