@@ -360,11 +360,211 @@ function WeatherCard({ user }) {
   );
 }
 
-/* Locais */
-function PlacesCard() {
-  const handleMapError = (e) => {
-    e.currentTarget.style.display = "none";
+/* ====== Mapa com seus mergulhos (Leaflet) — aceita vários formatos ====== */
+function DivesMap() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [query, setQuery] = useState("");
+
+  const mapRef = React.useRef(null);
+  const LRef = React.useRef(null);
+  const mapObjRef = React.useRef(null);
+  const markersRef = React.useRef([]);
+
+  // injeta CSS do Leaflet uma única vez
+  useEffect(() => {
+    const id = "leaflet-css";
+    if (!document.getElementById(id)) {
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      link.integrity = "sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=";
+      link.crossOrigin = "";
+      document.head.appendChild(link);
+    }
+  }, []);
+
+  // carrega os logs
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setErr("");
+        const data = await apiFetch("/api/diveLogs", { auth: true });
+        if (!active) return;
+        const arr = Array.isArray(data) ? data : [];
+        arr.sort((a, b) => new Date(b?.date || 0) - new Date(a?.date || 0));
+        setLogs(arr);
+      } catch (e) {
+        if (active) setErr(e?.message || "Falha ao carregar mergulhos.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  // --- utils de coordenadas ---
+  const normalizeLatLng = (a, b) => {
+    const A = Number(a), B = Number(b);
+    if (!Number.isFinite(A) || !Number.isFinite(B)) return null;
+    if (Math.abs(A) <= 90 && Math.abs(B) <= 180) return [A, B];      // [lat, lng]
+    if (Math.abs(A) <= 180 && Math.abs(B) <= 90) return [B, A];      // [lng, lat] -> inverte
+    return null;
   };
+  const tryFromCoordsArray = (coords) => {
+    if (!Array.isArray(coords) || coords.length < 2) return null;
+    return normalizeLatLng(coords[0], coords[1]);
+  };
+  const tryFromObj = (o) => {
+    if (!o || typeof o !== "object") return null;
+    if (Number.isFinite(o.lat) && Number.isFinite(o.lng)) return normalizeLatLng(o.lat, o.lng);
+    if (Number.isFinite(o.latitude) && Number.isFinite(o.longitude)) return normalizeLatLng(o.latitude, o.longitude);
+    if (o.type === "Point" && Array.isArray(o.coordinates)) return tryFromCoordsArray(o.coordinates); // GeoJSON
+    if (Array.isArray(o.coords)) return tryFromCoordsArray(o.coords);
+    if (Array.isArray(o.coordinates)) return tryFromCoordsArray(o.coordinates);
+    if (o.location) { const r = tryFromObj(o.location); if (r) return r; }
+    if (o.geometry) { const r = tryFromObj(o.geometry); if (r) return r; }
+    if (o.geo) { const r = tryFromObj(o.geo); if (r) return r; }
+    if (o.point) { const r = tryFromObj(o.point); if (r) return r; }
+    const s = o.latlng || o.coordsString || o.coordinatesString;
+    if (typeof s === "string" && s.includes(",")) {
+      const [a, b] = s.split(",").map((x) => Number(x.trim()));
+      return normalizeLatLng(a, b);
+    }
+    return null;
+  };
+  const getLatLng = (log) => {
+    // direto no log
+    let r =
+      tryFromObj(log) ||
+      tryFromObj(log?.location) ||
+      tryFromObj(log?.geo) ||
+      tryFromObj(log?.point) ||
+      tryFromObj(log?.coordinates);
+    if (r) return r;
+
+    // spots possíveis
+    const spot =
+      (typeof log?.divingSpotId === "object" ? log.divingSpotId : null) ||
+      (typeof log?.divingSpot === "object" ? log.divingSpot : null) ||
+      (typeof log?.spot === "object" ? log.spot : null);
+    if (spot) {
+      r =
+        tryFromObj(spot) ||
+        tryFromObj(spot?.location) ||
+        tryFromObj(spot?.geo) ||
+        tryFromObj(spot?.geometry) ||
+        tryFromObj(spot?.point) ||
+        tryFromObj(spot?.coordinates);
+      if (r) return r;
+      if (Number.isFinite(spot?.lat) && Number.isFinite(spot?.lon)) return normalizeLatLng(spot.lat, spot.lon);
+      if (Number.isFinite(spot?.lat) && Number.isFinite(spot?.lng)) return normalizeLatLng(spot.lat, spot.lng);
+      if (typeof spot?.latlng === "string" && spot.latlng.includes(",")) {
+        const [a, b] = spot.latlng.split(",").map((x) => Number(x.trim()));
+        const n = normalizeLatLng(a, b);
+        if (n) return n;
+      }
+    }
+    return null;
+  };
+
+  // filtra por busca e remove sem coordenadas
+  const filtered = logs.filter((log) => {
+    const latlng = getLatLng(log);
+    if (!latlng) return false;
+    if (!query) return true;
+    const q = query.toLowerCase();
+    const title = (log?.title || "").toLowerCase();
+    const spotName = ((log?.divingSpotId?.name) || (log?.divingSpotId?.title) || (log?.divingSpot?.name) || (log?.spot?.name) || "").toLowerCase();
+    const dateStr = (() => {
+      const d = new Date(log?.date);
+      return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR").toLowerCase();
+    })();
+    return title.includes(q) || spotName.includes(q) || dateStr.includes(q);
+  });
+
+  const computeCenter = (items) => {
+    const pts = items.map(getLatLng).filter(Boolean);
+    if (!pts.length) return [-14.235, -51.925]; // Brasil
+    const [sumLat, sumLng] = pts.reduce((acc, [la, ln]) => [acc[0] + la, acc[1] + ln], [0, 0]);
+    return [sumLat / pts.length, sumLng / pts.length];
+  };
+
+  // cria/atualiza o mapa e os pins
+  useEffect(() => {
+    (async () => {
+      if (!LRef.current) {
+        const L = await import("leaflet");
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+          iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+          shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        });
+        LRef.current = L;
+      }
+      const L = LRef.current;
+
+      if (!mapObjRef.current && mapRef.current) {
+        mapObjRef.current = L.map(mapRef.current, {
+          center: computeCenter(filtered),
+          zoom: 5,
+          zoomControl: true,
+        });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap",
+          maxZoom: 18,
+        }).addTo(mapObjRef.current);
+        setTimeout(() => mapObjRef.current && mapObjRef.current.invalidateSize(), 0);
+      }
+      if (!mapObjRef.current) return;
+
+      // limpa pins
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+
+      // adiciona pins
+      const ms = [];
+      const bounds = [];
+      filtered.forEach((log) => {
+        const latlng = getLatLng(log);
+        if (!latlng) return;
+        const [lat, lng] = latlng;
+        const Lm = L.marker([lat, lng]);
+        const title = log?.title || "Mergulho";
+        const dateStr = (() => {
+          const d = new Date(log?.date);
+          return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+        })();
+        const spotName =
+          (log?.divingSpotId?.name) || (log?.divingSpotId?.title) ||
+          (log?.divingSpot?.name) || (log?.spot?.name) || "—";
+        const depth = log?.depth != null ? `${log.depth} m` : "—";
+        Lm.bindPopup(
+          `<div style="font-weight:700;margin-bottom:4px">${title}</div>
+           <div><strong>Data:</strong> ${dateStr}</div>
+           <div><strong>Local:</strong> ${spotName}</div>
+           <div><strong>Profundidade:</strong> ${depth}</div>`
+        );
+        Lm.addTo(mapObjRef.current);
+        ms.push(Lm);
+        bounds.push([lat, lng]);
+      });
+      markersRef.current = ms;
+
+      // viewport
+      if (bounds.length === 1) {
+        mapObjRef.current.setView(bounds[0], 10);
+      } else if (bounds.length > 1) {
+        mapObjRef.current.fitBounds(bounds, { padding: [30, 30] });
+      } else {
+        mapObjRef.current.setView(computeCenter(filtered), 5);
+      }
+    })();
+  }, [filtered]);
 
   return (
     <section className="places" aria-labelledby="places-title">
@@ -372,16 +572,13 @@ function PlacesCard() {
         <span id="places-title">Locais que mergulhou</span>
       </SectionTitle>
 
-      <div className="places__map" role="img" aria-label="Mapa com pins de mergulhos">
-        <img
-          src="/images/map-brasil.jpg"
-          alt=""
-          className="places__mapImg"
-          onError={handleMapError}
-        />
-      </div>
-
-      <form className="places__search" role="search" aria-label="Pesquisar locais de mergulho" onSubmit={(e)=>e.preventDefault()}>
+      <form
+        className="places__search"
+        role="search"
+        aria-label="Pesquisar locais de mergulho"
+        onSubmit={(e) => e.preventDefault()}
+        style={{ marginBottom: 10 }}
+      >
         <label className="search__input">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
             <circle cx="11" cy="11" r="7" stroke="#9aa3af" />
@@ -391,10 +588,36 @@ function PlacesCard() {
             type="search"
             placeholder="Pesquise pelo título, local ou data"
             aria-label="Pesquisar"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
           />
         </label>
         <button type="submit" className="search__btn" aria-label="Buscar">🔍</button>
       </form>
+
+      <div
+        ref={mapRef}
+        className="places__map"
+        role="img"
+        aria-label="Mapa com pins de mergulhos"
+        style={{
+          width: "100%",
+          height: 360,
+          borderRadius: 12,
+          overflow: "hidden",
+          outline: "1px solid #e5e7eb",
+        }}
+      />
+
+      {loading && !err && <p style={{ marginTop: 8 }}>Carregando mapa…</p>}
+      {err && <p style={{ marginTop: 8, color: "#dc2626" }}>{err}</p>}
+      {!loading && !err && filtered.length === 0 && (
+        <p style={{ marginTop: 8 }}>
+          Nenhum mergulho com coordenadas foi encontrado.
+          <br />
+          <small>Verifique se seus logs/locais possuem latitude/longitude ou GeoJSON.</small>
+        </p>
+      )}
     </section>
   );
 }
@@ -600,7 +823,7 @@ export default function Logged() {
 
           <div className="dash__grid">
             <WeatherCard user={user} />
-            <PlacesCard />
+            <DivesMap />
           </div>
 
           <DivesTable />
