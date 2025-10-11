@@ -53,7 +53,7 @@ const Sidebar = () => {
 
         data = await apiFetch("/api/diveLogs/dateRange", {
           method: "POST",
-          body: JSON.stringify(body),
+          body: body,
         });
       } else {
         data = await apiFetch("/api/diveLogs");
@@ -238,7 +238,7 @@ const Sidebar = () => {
                 </div>
               ) : (
                 <Chart
-                  chartType="BarChart"
+                  chartType="ColumnChart"
                   width="100%"
                   height="300px"
                   data={chartData}
