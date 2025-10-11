@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import "./statistics.css"; // certifique-se de usar o CSS certo
+import { Chart } from "react-google-charts";
+import "./statistics.css";
+import { apiFetch } from "../../services/api";
 
 const MenuItem = ({ to, icon, children, end }) => (
   <NavLink
@@ -18,20 +20,138 @@ const MenuItem = ({ to, icon, children, end }) => (
 const Sidebar = () => {
   const navigate = useNavigate();
 
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [diveLogs, setDiveLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const [stats, setStats] = useState({
+    total: 0,
+    avgTime: 0,
+    avgDepth: 0,
+    mostCommonWaterType: "",
+    mostCommonWeather: "",
+  });
+
   const handleLogout = () => {
-    localStorage.clear(); // ou logout()
+    localStorage.clear();
     navigate("/login");
   };
 
+  const fetchDiveLogs = async (start, end) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let data;
+
+      if (start || end) {
+        const body = {};
+        if (start) body.startDate = new Date(start).toISOString();
+        if (end) body.endDate = new Date(end).toISOString();
+
+        data = await apiFetch("/api/diveLogs/dateRange", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+      } else {
+        data = await apiFetch("/api/diveLogs");
+      }
+
+      const sortedData = Array.isArray(data)
+        ? data.sort((a, b) => new Date(b.date) - new Date(a.date))
+        : [];
+
+      setDiveLogs(sortedData);
+      calculateStats(sortedData);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Erro ao buscar dados.");
+      setDiveLogs([]);
+      setStats({
+        total: 0,
+        avgTime: 0,
+        avgDepth: 0,
+        mostCommonWaterType: "",
+        mostCommonWeather: "",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateStats = (logs) => {
+    if (!logs.length) {
+      setStats({
+        total: 0,
+        avgTime: 0,
+        avgDepth: 0,
+        mostCommonWaterType: "",
+        mostCommonWeather: "",
+      });
+      return;
+    }
+
+    const total = logs.length;
+    const totalTime = logs.reduce((acc, cur) => acc + (cur.bottomTimeInMinutes || 0), 0);
+    const totalDepth = logs.reduce((acc, cur) => acc + (cur.depth || 0), 0);
+
+    const mostCommon = (arr) => {
+      const freq = {};
+      arr.forEach((val) => {
+        freq[val] = (freq[val] || 0) + 1;
+      });
+      return Object.entries(freq).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+    };
+
+    const mostCommonWaterType = mostCommon(logs.map((log) => log.waterType || ""));
+    const mostCommonWeather = mostCommon(logs.map((log) => log.weatherConditions || ""));
+
+    setStats({
+      total,
+      avgTime: totalTime / total,
+      avgDepth: totalDepth / total,
+      mostCommonWaterType,
+      mostCommonWeather,
+    });
+  };
+
+  useEffect(() => {
+    fetchDiveLogs();
+  }, []);
+
+  const handleStartDateChange = (e) => setStartDate(e.target.value);
+  const handleEndDateChange = (e) => setEndDate(e.target.value);
+  const handleFilterApply = () => fetchDiveLogs(startDate, endDate);
+
+  const chartData = [
+    ["Mergulho", "Tempo (minutos)", { role: "style" }],
+    ...diveLogs.map((log, i) => [
+      log.title || `Mergulho ${i + 1}`,
+      log.bottomTimeInMinutes || 0,
+      "#007fff",
+    ]),
+  ];
+
+  const chartOptions = {
+    title: "Tempo total de fundo por mergulho",
+    legend: { position: "none" },
+    chartArea: { width: "70%" },
+    hAxis: {
+      title: "Minutos",
+      minValue: 0,
+    },
+    vAxis: {
+      title: "Mergulhos",
+    },
+  };
+
   return (
-    <div className="logged"> {/* Container geral para grid layout */}
+    <div className="logged">
       <aside className="logged__sidebar">
         <div className="logged__brand">
-          <img
-            src="/images/logo-atlantida-branca.png"
-            alt="Atlântida"
-            className="logged__logoImg"
-          />
+          <img src="/images/logo-atlantida-branca.png" alt="Atlântida" className="logged__logoImg" />
         </div>
 
         <nav className="logged__nav" aria-label="Navegação principal">
@@ -59,61 +179,73 @@ const Sidebar = () => {
       </aside>
 
       <main className="logged__main">
-        {/* Conteúdo: Estatísticas */}
         <div className="statistics">
-          {/* Cabeçalho */}
           <div className="statistics__header">
             <div>
               <h1>Estatísticas</h1>
-              <p>
-                Explore as estatísticas detalhadas dos seus mergulhos, desde a profundidade máxima até as condições submarinas, tudo em um só lugar.
-              </p>
+              <p>Explore as estatísticas detalhadas dos seus mergulhos, desde a profundidade até as condições.</p>
             </div>
 
-            {/* Filtro de data */}
             <div className="statistics__filter">
               <label htmlFor="period">Filtre por período</label>
               <div>
-                <input type="date" id="period-start" />
+                <input type="date" id="period-start" value={startDate} onChange={handleStartDateChange} />
                 <span> - </span>
-                <input type="date" id="period-end" />
+                <input type="date" id="period-end" value={endDate} onChange={handleEndDateChange} />
+                <button onClick={handleFilterApply} className="statistics__chartBtn" style={{ marginLeft: "10px" }}>
+                  Aplicar
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Cards de estatísticas */}
+          {loading && <p>Carregando dados...</p>}
+          {error && <p style={{ color: "red" }}>{error}</p>}
+
           <div className="statistics__cards">
             <div className="statistics__card">
               <span className="statistics__label">Total de mergulhos</span>
-              <strong className="statistics__value">13</strong>
+              <strong className="statistics__value">{stats.total}</strong>
             </div>
             <div className="statistics__card">
               <span className="statistics__label">Tempo médio</span>
-              <strong className="statistics__value">35 Minutos</strong>
+              <strong className="statistics__value">{stats.avgTime.toFixed(0)} Minutos</strong>
             </div>
             <div className="statistics__card">
               <span className="statistics__label">Profundidade média</span>
-              <strong className="statistics__value">25 Metros</strong>
+              <strong className="statistics__value">{Math.round(stats.avgDepth)} Metros</strong>
             </div>
             <div className="statistics__card">
               <span className="statistics__label">Corpo de água mais comum</span>
-              <strong className="statistics__value">Oceano</strong>
+              <strong className="statistics__value">{stats.mostCommonWaterType || "-"}</strong>
             </div>
             <div className="statistics__card">
               <span className="statistics__label">Clima mais comum</span>
-              <strong className="statistics__value">Ensolarado</strong>
+              <strong className="statistics__value">{stats.mostCommonWeather || "-"}</strong>
             </div>
           </div>
 
-          {/* Gráfico */}
           <div className="statistics__chart">
             <div className="statistics__chartHeader">
-              <button className="statistics__chartBtn">Tempo total de fundo</button>
+              <button className="statistics__chartBtn" disabled>
+                Tempo total de fundo
+              </button>
             </div>
             <div className="statistics__chartContent">
-              <div className="statistics__chartPlaceholder">
-                <p>[ Gráfico de barras virá aqui ]</p>
-              </div>
+              {diveLogs.length === 0 ? (
+                <div className="statistics__chartPlaceholder">
+                  <p>[ Nenhum dado para mostrar no gráfico ]</p>
+                </div>
+              ) : (
+                <Chart
+                  chartType="BarChart"
+                  width="100%"
+                  height="300px"
+                  data={chartData}
+                  options={chartOptions}
+                  loader={<div>Carregando gráfico...</div>}
+                />
+              )}
             </div>
           </div>
         </div>
