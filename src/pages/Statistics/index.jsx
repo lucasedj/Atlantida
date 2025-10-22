@@ -25,6 +25,7 @@ const Sidebar = () => {
   const [diveLogs, setDiveLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedChart, setSelectedChart] = useState("geral");
 
   const [stats, setStats] = useState({
     total: 0,
@@ -125,26 +126,88 @@ const Sidebar = () => {
   const handleEndDateChange = (e) => setEndDate(e.target.value);
   const handleFilterApply = () => fetchDiveLogs(startDate, endDate);
 
-  const chartData = [
-    ["Mergulho", "Tempo (minutos)", { role: "style" }],
-    ...diveLogs.map((log, i) => [
-      log.title || `Mergulho ${i + 1}`,
-      log.bottomTimeInMinutes || 0,
-      "#007fff",
-    ]),
-  ];
+  const getChartData = () => {
+    switch (selectedChart) {
+      case "tempo":
+        return [
+          ["Mergulho", "Tempo (min)", { role: "style" }],
+          ...diveLogs.map((log, i) => [
+            log.title || `Mergulho ${i + 1}`,
+            log.bottomTimeInMinutes || 0,
+            "#0070E0",
+          ]),
+        ];
+      case "profundidade":
+        return [
+          ["Mergulho", "Profundidade (m)", { role: "style" }],
+          ...diveLogs.map((log, i) => [
+            log.title || `Mergulho ${i + 1}`,
+            log.depth || 0,
+            "#007FFF",
+          ]),
+        ];
+      case "temperatura":
+        return [
+          ["Mergulho", "Temp. fundo (°C)", { role: "style" }],
+          ...diveLogs.map((log, i) => [
+            log.title || `Mergulho ${i + 1}`,
+            log.temperature?.bottom || 0,
+            "#1F8FFF",
+          ]),
+        ];
+      case "geral":
+        return [
+          ["Mergulho", "Tempo", "Profundidade", "Temp. Fundo"],
+          ...diveLogs.map((log, i) => [
+            log.title || `Mergulho ${i + 1}`,
+            log.bottomTimeInMinutes || 0,
+            log.depth || 0,
+            log.temperature?.bottom || 0,
+          ]),
+        ];
+      default:
+        return [];
+    }
+  };
 
-  const chartOptions = {
-    title: "Tempo total de fundo por mergulho",
-    legend: { position: "none" },
-    chartArea: { width: "70%" },
-    hAxis: {
-      title: "Minutos",
-      minValue: 0,
-    },
-    vAxis: {
-      title: "Mergulhos",
-    },
+  const getChartOptions = () => {
+    const base = {
+      legend: { position: selectedChart === "geral" ? "top" : "none" },
+      chartArea: { width: "70%" },
+    };
+
+    switch (selectedChart) {
+      case "tempo":
+        return {
+          ...base,
+          title: "Tempo total de fundo por mergulho",
+          hAxis: { title: "Minutos" },
+          vAxis: { title: "Mergulhos" },
+        };
+      case "profundidade":
+        return {
+          ...base,
+          title: "Profundidade por mergulho",
+          hAxis: { title: "Metros" },
+          vAxis: { title: "Mergulhos" },
+        };
+      case "temperatura":
+        return {
+          ...base,
+          title: "Temperatura de fundo por mergulho",
+          hAxis: { title: "Temperatura (°C)" },
+          vAxis: { title: "Mergulhos" },
+        };
+      case "geral":
+        return {
+          ...base,
+          title: "Resumo geral por mergulho",
+          isStacked: false,
+          colors: ["#0070E0", "#1F8FFF", "#70B8FF"], // cores para as 3 séries
+        };
+      default:
+        return base;
+    }
   };
 
   return (
@@ -227,9 +290,22 @@ const Sidebar = () => {
 
           <div className="statistics__chart">
             <div className="statistics__chartHeader">
-              <button className="statistics__chartBtn" disabled>
-                Tempo total de fundo
-              </button>
+              <div className="statistics__chartSelector">
+                <label htmlFor="chart-select" style={{ marginRight: "10px", fontWeight: "bold" }}>
+                  Selecionar gráfico:
+                </label>
+                <select
+                  id="chart-select"
+                  value={selectedChart}
+                  onChange={(e) => setSelectedChart(e.target.value)}
+                  className="statistics__chartSelect"
+                >
+                  <option value="tempo">Tempo de fundo</option>
+                  <option value="profundidade">Profundidade</option>
+                  <option value="temperatura">Temp. fundo</option>
+                  <option value="geral">Resumo geral</option>
+                </select>
+              </div>
             </div>
             <div className="statistics__chartContent">
               {diveLogs.length === 0 ? (
@@ -238,11 +314,11 @@ const Sidebar = () => {
                 </div>
               ) : (
                 <Chart
-                  chartType="ColumnChart"
+                  chartType={selectedChart === "geral" ? "ColumnChart" : "ColumnChart"}
                   width="100%"
                   height="300px"
-                  data={chartData}
-                  options={chartOptions}
+                  data={getChartData()}
+                  options={getChartOptions()}
                   loader={<div>Carregando gráfico...</div>}
                 />
               )}
