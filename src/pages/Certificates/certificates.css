@@ -1,5 +1,5 @@
 /* ====== Certificados (conteúdo) ====== */
-.cert__wrap{ padding-top: 8px; }
+.cert__wrap{ padding: 30px 60px;}
 
 /* Título e subtítulo */
 .cert__title{
@@ -28,6 +28,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
+
 }
 
 /* Card “Adicionar Certificado” */

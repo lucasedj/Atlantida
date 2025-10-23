@@ -1,4 +1,4 @@
-logged {
+.logged {
   display: grid;
   grid-template-columns: 240px 1fr;
   height: 100dvh;
@@ -8,11 +8,10 @@ logged {
   gap: 0;
 }
 
-
 /* Conteúdo principal */
 .logged__main {
   grid-column: 2; /* Faz o main ficar na segunda coluna da grid */
-  padding: 30px 60px;
+  padding: 48px 66px;
   height: 100vh;
   overflow-y: auto;
   background-color: #f7f9fc;
@@ -29,7 +28,7 @@ logged {
 }
 
 .statistics__header > div:first-child h1 {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 2rem;
   margin-bottom: 8px;
   color: #222;

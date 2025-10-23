@@ -106,7 +106,6 @@
 /* ---------- Área de conteúdo ---------- */
 .logged__content{
   min-height:100dvh;
-  background: radial-gradient(120% 120% at -10% -10%, #eef6ff 0%, #f7fbff 38%, #ffffff 60%) no-repeat;
   padding:var(--gap-page);
 }
 .logged__content .page{ max-width:1160px; margin:0 auto; }
@@ -128,12 +127,11 @@
 /* =====================================================
    Dashboard (conteúdo)
 ===================================================== */
-.dash{ max-width:1120px; margin:0 auto; }
+.dash{ max-width:1120px; margin:0 auto; padding: 30px 60px; }
 .dash__head{ margin-bottom:6px; }
 .dash__title{ margin:0 0 4px; font-size:clamp(1.6rem,2.6vw,2.1rem); font-weight:800; color:var(--ink-950); }
 .dash__sub{ margin:0; color:var(--ink-600); max-width:760px; }
 .dash__sectionTitle{ margin:0 0 8px; font-size:1.05rem; font-weight:800; color:var(--ink-800); }
-
 /* ===== Grid topo: Previsão × Mapa ===== */
 .dash__grid{
   display:grid;

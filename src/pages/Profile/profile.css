@@ -1,5 +1,5 @@
 /* ===== Perfil do usuário ===== */
-.profile { max-width: 980px; margin: 0 auto; }
+.profile { max-width: 980px; margin: 0 auto; padding: 30px 60px; }
 
 .profile__head { margin-bottom: 14px; }
 .profile__title{
