@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "../article.css";
 
@@ -9,6 +9,10 @@ import "../article.css";
  * - Footer igual ao Terms.jsx / Home.jsx
  */
 export default function Article() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <>
       {/* ============================
@@ -90,15 +94,15 @@ export default function Article() {
           <h3>2. A Palavra do Seu Instrutor é Lei</h3>
           <p>
             Mesmo que você tenha centenas de mergulhos no currículo, as instruções do seu instrutor ou guia devem ser seguidas em todos os momentos. 
-Não presuma que você sabe mais ou pense que tem experiência suficiente para se desviar dos planos, mesmo que minimamente. 
-Os mergulhos em Gili Trawangan são cuidadosamente planejados pelos guias da Gangga Divers para garantir sua segurança, diversão e a proteção do ambiente marinho.
+            Não presuma que você sabe mais ou pense que tem experiência suficiente para se desviar dos planos, mesmo que minimamente. 
+            Os mergulhos em Gili Trawangan são cuidadosamente planejados pelos guias da Gangga Divers para garantir sua segurança, diversão e a proteção do ambiente marinho.
           </p>
 
           <h3>3. Fale</h3>
           <p>
             A palavra do seu instrutor pode ser lei, mas sempre fale se notar algo que ele ou ela não tenha percebido. 
-Como mergulhador, é sua responsabilidade proteger os recifes. Se, por exemplo, você vir outro mergulhador ou guia agindo de forma imprudente ou danificando o recife, 
-é essencial que você diga algo imediatamente. Ficar calado por timidez ou por não querer causar incômodo pode resultar em danos ao recife ou em alguém enfrentando uma situação complicada.
+            Como mergulhador, é sua responsabilidade proteger os recifes. Se, por exemplo, você vir outro mergulhador ou guia agindo de forma imprudente ou danificando o recife, 
+            é essencial que você diga algo imediatamente. Ficar calado por timidez ou por não querer causar incômodo pode resultar em danos ao recife ou em alguém enfrentando uma situação complicada.
           </p>
 
           <h3>4. Use Seus Olhos, Não Suas Mãos</h3>

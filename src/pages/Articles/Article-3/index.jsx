@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "../article.css"; // Reaproveita o CSS genérico de artigos
 
@@ -10,6 +10,10 @@ import "../article.css"; // Reaproveita o CSS genérico de artigos
  *  - Footer padronizado igual aos outros artigos
  */
 export default function Article3() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <>
       {/* ============================
@@ -50,9 +54,9 @@ export default function Article3() {
           Proteger os Oceanos: A<br />Missão dos Mergulhadores
         </h1>
         <p className="art-lead">
-           Como os mergulhadores podem atuar como guardiões dos oceanos e ajudar a 
-           alcançar o Objetivo 14 dos Objetivos do Desenvolvimento Sustentável, 
-           focado na preservação da vida marinha.
+          Como os mergulhadores podem atuar como guardiões dos oceanos e ajudar a 
+          alcançar o Objetivo 14 dos Objetivos do Desenvolvimento Sustentável, 
+          focado na preservação da vida marinha.
         </p>
 
         {/* --- Imagem principal do artigo (Hero) --- */}

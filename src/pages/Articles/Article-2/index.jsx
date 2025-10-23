@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "../article.css";
 
@@ -8,7 +8,13 @@ import "../article.css";
  * - Conteúdo com meta, título, lide, imagem hero e corpo
  * - Footer padronizado
  */
-export default function ArticleNegligencia() {
+
+
+export default function ArticleNegligencia() { 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <>
       {/* ============================
