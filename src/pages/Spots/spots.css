@@ -340,7 +340,54 @@
   filter: saturate(1.05) brightness(1.02) contrast(1.01);
 }
 .leaflet-control-zoom a{ border-radius:10px !important; }
-.leaflet-popup-content-wrapper{ border-radius:12px !important; }
+
+/* 🔹 Marcador custom (mais nítido e com sombra) */
+.spots__mapPanel .leaflet-marker-icon.spot-marker{
+  transform-origin: 50% 92%;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.28))
+          drop-shadow(0 8px 18px rgba(2,32,71,.12));
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  will-change: transform, filter;
+}
+
+/* Hover (desktop) */
+@media (hover:hover){
+  .spots__mapPanel .leaflet-marker-icon.spot-marker.leaflet-interactive:hover{
+    transform: translateY(-1px) scale(1.03);
+    filter: drop-shadow(0 3px 8px rgba(0,0,0,.32))
+            drop-shadow(0 10px 22px rgba(2,32,71,.16));
+  }
+}
+
+/* Foco via teclado (acessibilidade) */
+.spots__mapPanel .leaflet-marker-icon.spot-marker:focus-visible{
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(255,255,255,.95),
+    0 0 0 6px rgba(30,124,255,.55);
+  border-radius: 999px;
+}
+
+/* Popups refinados para combinar com o tema */
+.spots__mapPanel .leaflet-popup-content-wrapper{
+  border-radius:12px !important;
+  box-shadow: 0 18px 38px rgba(2,32,71,.18);
+  border: 1px solid rgba(2,32,71,.08);
+}
+.spots__mapPanel .leaflet-popup-tip{
+  filter: drop-shadow(0 4px 10px rgba(2,32,71,.16));
+}
+
+/* Evita que imagens internas fiquem “lavadas” e bloqueiem cliques */
+.spots__mapPanel .leaflet-container img{
+  image-rendering: -webkit-optimize-contrast;
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
 
 /* ---------------------------------------------------------
    MENSAGENS & FORM
@@ -675,4 +722,36 @@ textarea.input{ min-height:7.5rem; padding-top:.625rem; padding-bottom:.625rem; 
 :root{
   --sidebar-bg: #0a53cb;   /* fundo claro */
   --sidebar-fg: #111827;   /* texto escuro */
+}
+
+/* Desativa o translate/hover apenas para botões com .btn-static */
+.btn-static{
+  position: static;
+  transform: none !important;
+  will-change: auto !important;
+  transition: box-shadow .12s ease, filter .12s ease, opacity .12s ease;
+}
+@media (hover:hover){
+  .btn-static:hover{
+    transform: none !important;
+  }
+}
+.form-actions--sticky{
+  position: sticky;
+  bottom: 0;
+  background: var(--bg, #fff);
+  padding: 12px;
+  border-top: 1px solid var(--ink-200, #e5e7eb);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  z-index: 1;
+}
+
+/* ===== FIX: não deixa o botão "CADASTRAR LOCAL DE MERGULHO" se mover ===== */
+.spots__form .form-actions .btn-primary,
+.spots__form .form-actions .btn-primary:hover,
+.spots__form .form-actions .btn-primary:active{
+  transform: none !important;
+  filter: none !important;   /* opcional: remove brilho pra não parecer "mover" */
 }

@@ -123,7 +123,7 @@ const ensureLeaflet = () => {
 };
 
 /* =========================================
- * Mapa de Spots
+ * Mapa de Spots (com ícone customizado)
  * ========================================= */
 const SpotsMap = memo(function SpotsMap({
   spots = [],
@@ -135,6 +135,7 @@ const SpotsMap = memo(function SpotsMap({
   const mapRef = useRef(null);
   const markersLayerRef = useRef(null);
   const pickMarkerRef = useRef(null);
+  const spotIconRef = useRef(null); // 👈 ícone customizado
 
   // init
   useEffect(() => {
@@ -157,11 +158,21 @@ const SpotsMap = memo(function SpotsMap({
 
       L.control.zoom({ position: "bottomright" }).addTo(map);
 
+      // cria o ícone customizado (coloque public/images/spots.png)
+      const BASE = import.meta.env.BASE_URL || "/";
+      spotIconRef.current = L.icon({
+        iconUrl: `${BASE}images/spots.png`,
+        iconSize: [34, 34],     // ajuste conforme o PNG
+        iconAnchor: [17, 30],   // "ponta" do pino
+        popupAnchor: [0, -26],
+        className: "spot-marker",
+      });
+
       map.on("click", (e) => {
         const { lat, lng } = e.latlng;
         onPickLatLon?.(lat, lng);
         if (pickMarkerRef.current) pickMarkerRef.current.setLatLng([lat, lng]);
-        else pickMarkerRef.current = L.marker([lat, lng]).addTo(map);
+        else pickMarkerRef.current = L.marker([lat, lng], { icon: spotIconRef.current }).addTo(map);
       });
 
       markersLayerRef.current = L.layerGroup().addTo(map);
@@ -192,7 +203,12 @@ const SpotsMap = memo(function SpotsMap({
       spots.forEach((s) => {
         const [lon, lat] = s?.location?.coordinates || [];
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
-          const m = L.marker([lat, lon]).addTo(layer);
+          const m = L.marker([lat, lon], {
+            icon: spotIconRef.current || undefined,
+            title: s.name || "Ponto de mergulho",
+            keyboard: true,
+          }).addTo(layer);
+
           m.on("click", () => onSelectSpot?.(s));
           bounds.extend([lat, lon]);
           const title = s.name || "Ponto de mergulho";
@@ -1388,10 +1404,14 @@ export default function Spots() {
             </div>
 
             <div className="form-actions" style={{ marginTop: 8 }}>
-              <button type="submit" className="btn-primary" disabled={submitting}>
-                {submitting ? "CADASTRANDO..." : "CADASTRAR LOCAL DE MERGULHO"}
-              </button>
-            </div>
+          <button
+            type="submit"
+            className="btn-primary btn-static"   // <- adicionada
+            disabled={submitting}>
+            {submitting ? "CADASTRANDO..." : "CADASTRAR LOCAL DE MERGULHO"}
+          </button>
+        </div>
+
           </form>
         </div>
       </main>
@@ -1406,3 +1426,4 @@ export default function Spots() {
     </div>
   );
 }
+

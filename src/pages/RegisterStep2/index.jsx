@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import "./RegisterForm2.css";
 import { useNavigate, Link } from "react-router-dom";
@@ -32,51 +32,163 @@ const RegistrationForm = () => {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
-  } = useForm();
+    setValue,            // 👈 vamos sincronizar Context -> RHF
+  } = useForm({
+    mode: "onChange",
+    defaultValues: {
+      cep: cep || "",
+      country: country || "",
+      state: state || "",
+      city: city || "",
+      district: district || "",
+      street: street || "",
+      number: number || "",
+      complement: complement || "",
+    },
+  });
 
   const navigate = useNavigate();
 
-  //regex
-  const cepRegex = /^\d{5}-\d{3}$/;
+  // --- Helpers de CEP ---
+  const normalizeCep = (v = "") => v.replace(/\D/g, "").slice(0, 8);
+  const maskCep = (v = "") => {
+    const n = normalizeCep(v);
+    return n.length > 5 ? `${n.slice(0, 5)}-${n.slice(5)}` : n;
+  };
 
-  const onSubmit = (data) => {
-    api.post("/api/users", {
-      firstName: firstName,
-      lastName: lastName,
-      email: email,
-      password: password,
-      birthDate: dob,
-      cep: cep,
-      country: country,
-      state: state,
-      city: city,
-      district: district,
-      street: street,
-      number: number,
-      complement: complement,
-    }, {
-      withCredentials: true
-    })
-      .then((res) => {
-        navigate("/login");
-      })
+  // Helper para sincronizar qualquer campo com o RHF
+  const sync = (name, value) => {
+    setValue(name, value, { shouldValidate: true, shouldDirty: true });
+  };
+
+  // Estados locais para feedback da busca de CEP
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepMessage, setCepMessage] = useState("");
+
+  // Sincroniza valores existentes do Context com o RHF ao montar (caso venham da etapa anterior)
+  useEffect(() => {
+    sync("cep", cep || "");
+    sync("country", country || "");
+    sync("state", state || "");
+    sync("city", city || "");
+    sync("district", district || "");
+    sync("street", street || "");
+    sync("number", number || "");
+    sync("complement", complement || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // uma vez
+
+  // Dispara a busca quando o CEP tiver 8 dígitos
+  useEffect(() => {
+    const digits = normalizeCep(cep);
+    if (digits.length !== 8) {
+      if (digits.length === 0) setCepMessage("");
+      return;
+    }
+
+    let cancelled = false;
+    const fetchAddress = async () => {
+      setCepLoading(true);
+      setCepMessage("Buscando endereço pelo CEP...");
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        if (data?.erro) {
+          setCepMessage("CEP não encontrado.");
+          return;
+        }
+
+        // Preenche campos (não sobrescreve se usuário já digitou algo manualmente)
+        setCountry((prev) => {
+          const v = prev || "Brasil";
+          sync("country", v);
+          return v;
+        });
+        if (data.uf) {
+          setState((prev) => {
+            const v = prev || data.uf;
+            sync("state", v);
+            return v;
+          });
+        }
+        if (data.localidade) {
+          setCity((prev) => {
+            const v = prev || data.localidade;
+            sync("city", v);
+            return v;
+          });
+        }
+        if (data.bairro) {
+          setDistrict((prev) => {
+            const v = prev || data.bairro;
+            sync("district", v);
+            return v;
+          });
+        }
+        if (data.logradouro) {
+          setStreet((prev) => {
+            const v = prev || data.logradouro;
+            sync("street", v);
+            return v;
+          });
+        }
+
+        setCepMessage("Endereço preenchido automaticamente.");
+      } catch (e) {
+        setCepMessage("Falha ao buscar CEP. Tente novamente.");
+      } finally {
+        if (!cancelled) setCepLoading(false);
+      }
+    };
+
+    // pequeno debounce para evitar chamadas em excesso
+    const t = setTimeout(fetchAddress, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cep]);
+
+  const onSubmit = () => {
+    api.post(
+      "/api/users",
+      {
+        firstName,
+        lastName,
+        email,
+        password,
+        birthDate: dob,
+        cep,
+        country,
+        state,
+        city,
+        district,
+        street,
+        number,
+        complement,
+      },
+      { withCredentials: true }
+    )
+      .then(() => navigate("/login"))
       .catch((err) => {
-        console.log(err.response?.data?.message)
+        console.log(err.response?.data?.message);
       });
+  };
 
-  }
   return (
     <div>
-      {/* Navbar fica fora da container central */}
+      {/* Navbar */}
       <div className="navbar">
         <img src={Logo} alt="Logo Atlântida" className="logo" />
         <Link to="/register" className="back-button">
           <img src={Arrow} alt="Seta voltar" style={{ width: "16px", height: "16px" }} />
           VOLTAR À ETAPA ANTERIOR
         </Link>
-
       </div>
 
       {/* Corais decorativos */}
@@ -85,14 +197,14 @@ const RegistrationForm = () => {
         <img src={RightCoral} alt="Coral direito" className="right-coral" />
       </div>
 
-      {/* Container principal centralizado */}
+      {/* Container principal */}
       <div className="container">
         <h1 className="title">Crie sua conta</h1>
         <p className="subtitle">
           O cadastro será realizado em duas etapas, preencha todos os campos atentamente
         </p>
 
-        {/* Stepper com indicadores e barras */}
+        {/* Stepper */}
         <div className="stepper-container">
           <div className="steps-row">
             <div className="step-item">
@@ -128,24 +240,35 @@ const RegistrationForm = () => {
               })}
               value={cep}
               onChange={(e) => {
-                setCep(e.target.value);
+                const masked = maskCep(e.target.value);
+                setCep(masked);
+                sync("cep", masked);
               }}
               className="input"
               placeholder="00000-000"
+              inputMode="numeric"
+              autoComplete="postal-code"
             />
             {errors.cep && <p className="error">{errors.cep.message}</p>}
+            {!!cepMessage && (
+              <p className={cepLoading ? "info" : "success"} style={{ marginTop: 6 }}>
+                {cepMessage}
+              </p>
+            )}
           </div>
 
           {/* PAÍS */}
           <div className="form-group">
             <input
-              {...register("country", {
-                required: "País é obrigatório.",
-              })}
+              {...register("country", { required: "País é obrigatório." })}
               value={country}
-              onChange={(e) => setCountry(e.target.value)}
+              onChange={(e) => {
+                setCountry(e.target.value);
+                sync("country", e.target.value);
+              }}
               className="input"
               placeholder="Brasil"
+              autoComplete="country-name"
             />
             {errors.country && <p className="error">{errors.country.message}</p>}
           </div>
@@ -154,13 +277,15 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Estado</label>
             <input
-              {...register("state", {
-                required: "Estado é obrigatório.",
-              })}
+              {...register("state", { required: "Estado é obrigatório." })}
               value={state}
-              onChange={(e) => setState(e.target.value)}
+              onChange={(e) => {
+                setState(e.target.value);
+                sync("state", e.target.value);
+              }}
               className="input"
-              placeholder="Digite seu estado"
+              placeholder="Digite seu estado (UF)"
+              autoComplete="address-level1"
             />
             {errors.state && <p className="error">{errors.state.message}</p>}
           </div>
@@ -169,13 +294,15 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Cidade</label>
             <input
-              {...register("city", {
-                required: "Cidade é obrigatória.",
-              })}
+              {...register("city", { required: "Cidade é obrigatória." })}
               value={city}
-              onChange={(e) => setCity(e.target.value)}
+              onChange={(e) => {
+                setCity(e.target.value);
+                sync("city", e.target.value);
+              }}
               className="input"
               placeholder="Digite sua cidade"
+              autoComplete="address-level2"
             />
             {errors.city && <p className="error">{errors.city.message}</p>}
           </div>
@@ -184,11 +311,12 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Bairro</label>
             <input
-              {...register("district", {
-                required: "Bairro é obrigatório.",
-              })}
+              {...register("district", { required: "Bairro é obrigatório." })}
               value={district}
-              onChange={(e) => setDistrict(e.target.value)}
+              onChange={(e) => {
+                setDistrict(e.target.value);
+                sync("district", e.target.value);
+              }}
               className="input"
               placeholder="Digite seu bairro"
             />
@@ -199,32 +327,34 @@ const RegistrationForm = () => {
           <div className="form-group">
             <label className="label">Logradouro</label>
             <input
-              {...register("street", {
-                required: "Logradouro é obrigatório.",
-              })}
+              {...register("street", { required: "Logradouro é obrigatório." })}
               value={street}
-              onChange={(e) => setStreet(e.target.value)}
+              onChange={(e) => {
+                setStreet(e.target.value);
+                sync("street", e.target.value);
+              }}
               className="input"
               placeholder="Digite o logradouro"
+              autoComplete="street-address"
             />
             {errors.street && <p className="error">{errors.street.message}</p>}
-
           </div>
 
           {/* NÚMERO */}
           <div className="form-group">
             <label className="label">Número</label>
             <input
-              {...register("number", {
-                required: "Número é obrigatório.",
-              })}
+              {...register("number", { required: "Número é obrigatório." })}
               value={number}
-              onChange={(e) => setNumber(e.target.value)}
+              onChange={(e) => {
+                setNumber(e.target.value);
+                sync("number", e.target.value);
+              }}
               className="input"
               placeholder="Número ou S/N"
+              autoComplete="on"
             />
             {errors.number && <p className="error">{errors.number.message}</p>}
-
           </div>
 
           {/* COMPLEMENTO */}
@@ -232,15 +362,13 @@ const RegistrationForm = () => {
             <label className="label">Complemento (opcional)</label>
             <input
               {...register("complement", {
-                maxLength: {
-                  value: 100,
-                  message: "Complemento deve ter no máximo 100 caracteres.",
-                },
-                required: false
+                maxLength: { value: 100, message: "Complemento deve ter no máximo 100 caracteres." },
+                required: false,
               })}
               value={complement}
               onChange={(e) => {
                 setComplement(e.target.value);
+                sync("complement", e.target.value);
               }}
               className="input"
               placeholder="Apartamento, sala, conjunto, andar"
@@ -248,8 +376,8 @@ const RegistrationForm = () => {
             {errors.complement && <p className="error">{errors.complement.message}</p>}
           </div>
 
-          <button type="submit" className="submit-button">
-            CONCLUIR REGISTRO
+          <button type="submit" className="submit-button" disabled={cepLoading}>
+            {cepLoading ? "Carregando..." : "CONCLUIR REGISTRO"}
           </button>
         </form>
       </div>

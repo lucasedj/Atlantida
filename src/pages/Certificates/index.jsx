@@ -27,6 +27,10 @@ export default function Certificates() {
     expiryDate: "",
   });
 
+  // --- novo: modal de confirmação de exclusão ---
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   // --- helpers simples ---
   const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : "--");
 
@@ -89,18 +93,21 @@ export default function Certificates() {
     setViewOpen(true);
   };
 
-  // --- excluir certificado ---
+  // --- excluir certificado (execução real) ---
   const handleDelete = async (id) => {
     if (!id) return;
-    const ok = window.confirm("Tem certeza que deseja excluir este certificado?");
-    if (!ok) return;
+    setDeleting(true);
+    setErr("");
     try {
       await apiFetch(`/api/certificates/${id}`, { method: "DELETE", auth: true });
       setCerts((prev) => prev.filter((c) => (c._id || c.id) !== id));
       setViewOpen(false);
       setSelected(null);
+      setDeleteOpen(false);
     } catch (e) {
       setErr(e?.message || "Não foi possível excluir o certificado.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -297,7 +304,7 @@ export default function Certificates() {
                   className="certView__delete"
                   title="Excluir certificado"
                   aria-label="Excluir certificado"
-                  onClick={() => handleDelete(selected._id || selected.id)}
+                  onClick={() => setDeleteOpen(true)}
                 >
                   🗑️
                 </button>
@@ -323,17 +330,17 @@ export default function Certificates() {
                     selected.file?.url ||
                     selected.filePath ||
                     "";
-                const src = raw ? toPublicUrl(raw) : "";
-                const isPDF = src.toLowerCase().endsWith(".pdf");
-                if (!src) return <div className="cert__placeholder" aria-hidden>📄</div>;
-                if (isPDF) {
-                  return (
-                    <a className="cert__pdfThumb cert__pdfThumb--big" href={src} target="_blank" rel="noreferrer">
-                      <span>PDF — abrir</span>
-                    </a>
-                  );
-                }
-                return <img className="certView__image" src={src} alt="Imagem do certificado" />;
+                  const src = raw ? toPublicUrl(raw) : "";
+                  const isPDF = src.toLowerCase().endsWith(".pdf");
+                  if (!src) return <div className="cert__placeholder" aria-hidden>📄</div>;
+                  if (isPDF) {
+                    return (
+                      <a className="cert__pdfThumb cert__pdfThumb--big" href={src} target="_blank" rel="noreferrer">
+                        <span>PDF — abrir</span>
+                      </a>
+                    );
+                  }
+                  return <img className="certView__image" src={src} alt="Imagem do certificado" />;
                 })()}
               </div>
 
@@ -369,6 +376,60 @@ export default function Certificates() {
             <footer className="certModal__footer">
               <button type="button" className="btn-primary" onClick={() => setViewOpen(false)}>
                 FECHAR
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Modal: Confirmação de Exclusão ===== */}
+      {deleteOpen && selected && (
+        <div
+          className="certModal__backdrop"
+          role="presentation"
+          onClick={(e) => { if (e.target === e.currentTarget) setDeleteOpen(false); }}
+        >
+          <div
+            className="certModal certConfirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="deleteTitle"
+          >
+            <header className="certModal__head">
+              <h3 id="deleteTitle" className="certModal__title">Excluir certificado</h3>
+              <button
+                type="button"
+                className="certModal__close"
+                aria-label="Fechar"
+                onClick={() => setDeleteOpen(false)}
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="certModal__body" style={{ paddingTop: 16 }}>
+              <p style={{ margin: 0, color: "var(--c-ink-800, #1f2937)" }}>
+                Deseja realmente excluir esse certificado?
+              </p>
+            </div>
+
+            <footer className="certModal__footer">
+              <button
+                type="button"
+                className="btn-outline"
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleting}
+              >
+                NÃO
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handleDelete(selected._id || selected.id)}
+                disabled={deleting}
+                style={deleting ? { opacity: .7 } : undefined}
+              >
+                {deleting ? "EXCLUINDO..." : "EXCLUIR"}
               </button>
             </footer>
           </div>
