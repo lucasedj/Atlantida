@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import api from "../../api/client";
 import "./Home.css";
 
+
 /* Leaflet (mapa) */
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -382,9 +383,8 @@ export default function Home() {
             >
               Termos
             </a>
-            <Link to="/Sobre Nós" className="link link-ghost">Sobre Nós</Link>
+            <Link to="/sobre" className="link link-ghost">Sobre nós</Link>
           </nav>
-
           <a
             href="#app-download"
             className="link-cta"

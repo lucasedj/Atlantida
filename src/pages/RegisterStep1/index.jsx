@@ -33,7 +33,6 @@ const RegistrationForm = () => {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm();
 
@@ -47,12 +46,23 @@ const RegistrationForm = () => {
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
-  //regex
-  const emailRegex = /^[^\s@]+@[^\s@]+(\.[^\s@]{2,})+$/;
+  // helper para hoje em yyyy-mm-dd (compatível com <input type="date">)
+  const todayStr = React.useMemo(
+    () => new Date().toISOString().split("T")[0],
+    []
+  );
 
-  useEffect(() => {
-
-  }, [])
+  const calcAge = (dateStr) => {
+    if (!dateStr) return 0;
+    const birth = new Date(dateStr);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
 
   return (
     <div>
@@ -108,8 +118,8 @@ const RegistrationForm = () => {
               {...register("firstName", { required: "Nome é obrigatório." })}
               value={firstName}
               onChange={(e) => {
-                setFirstName(e.target.value)
-                e.target.setCustomValidity("")
+                setFirstName(e.target.value);
+                e.target.setCustomValidity("");
               }}
               onInvalid={(e) => e.target.setCustomValidity("")}
               type="text"
@@ -126,8 +136,8 @@ const RegistrationForm = () => {
               {...register("lastName", { required: "Sobrenome é obrigatório." })}
               value={lastName}
               onChange={(e) => {
-                setLastName(e.target.value)
-                e.target.setCustomValidity("")
+                setLastName(e.target.value);
+                e.target.setCustomValidity("");
               }}
               onInvalid={(e) => e.target.setCustomValidity("")}
               type="text"
@@ -142,17 +152,26 @@ const RegistrationForm = () => {
             <label className="label">Data de nascimento</label>
             <input
               value={dob}
-              {...register("dob", { required: "Data de nascimento é obrigatória." })}
-              onChange={(e) => {
-                setDob(e.target.value)
-                e.target.setCustomValidity("")
-              }}
-              onInvalid={(e) => e.target.setCustomValidity("")}
               type="date"
               className="input"
               placeholder="dd/mm/aaaa"
+              max={todayStr}
+              {...register("dob", {
+                required: "Data de nascimento é obrigatória.",
+                validate: {
+                  notFuture: (value) =>
+                    value && value <= todayStr || "Informe uma data válida (não pode ser no futuro).",
+                  isAdult: (value) =>
+                    calcAge(value) >= 18 || "É necessário ter 18 anos ou mais.",
+                },
+              })}
+              onChange={(e) => {
+                setDob(e.target.value);
+                e.target.setCustomValidity("");
+              }}
+              onInvalid={(e) => e.target.setCustomValidity("")}
             />
-            {errors.dob && <p className="error">Data de nascimento é obrigatória.</p>}
+            {errors.dob && <p className="error">{errors.dob.message}</p>}
           </div>
 
           {/* EMAIL */}
@@ -232,7 +251,6 @@ const RegistrationForm = () => {
               <p className="error">{errors.confirmPassword.message}</p>
             )}
           </div>
-
 
           <button type="submit" className="submit-button">
             PRÓXIMA ETAPA

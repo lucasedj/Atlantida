@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Article1 from "./pages/Articles/Article-1";
 import Article2 from "./pages/Articles/Article-2";
 import Article3 from "./pages/Articles/Article-3";
+import Sobre from "./pages/Sobre";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -34,6 +35,7 @@ export default function AppRoutes() {
       <Routes>
         {/* Página inicial */}
         <Route path="/" element={<Home />} />
+        <Route path="/sobre" element={<Sobre />} />
         {/* <Route path="/" element={<Navigate to="/logged" replace />} /> */}
 
         {/* Autenticação / termos */}
