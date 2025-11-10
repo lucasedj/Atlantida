@@ -1260,7 +1260,6 @@ export default function Spots() {
                       <div className="spots__metaGrid">
                         <div><strong>Nível de mergulho:</strong><span /><span>{selected.difficultyLevel ?? "—"}</span></div>
                         <div><strong>Visibilidade</strong><span /><span>{selected.visibility ?? "—"}</span></div>
-                        <div><strong>Corpo d’água</strong><span /><span>{selected.waterBody || "—"}</span></div>
                         <div><strong>Coordenadas</strong><span /><span>
                           {Array.isArray(selected?.location?.coordinates)
                             ? `${selected.location.coordinates[1]?.toFixed?.(5)}, ${selected.location.coordinates[0]?.toFixed?.(5)}`

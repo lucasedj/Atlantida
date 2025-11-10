@@ -305,22 +305,31 @@ html, body {
   padding-bottom: 20px; /* mantém um pequeno respiro, sem criar a faixa */
 }
 
-/* ======== AJUSTE PARA TELA SEM ROLAGEM ======== */
+/* ======== AJUSTE PARA TELA SEM ROLAGEM — CORRIGIDO ======== */
 html, body {
   margin: 0;
   padding: 0;
-  height: 100vh;
-  overflow: hidden; /* remove rolagem de página */
-  background-color: #08152e;
+  min-height: 100%;
+  /* permita rolagem vertical da página */
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: #ffffff; /* mantém seu fundo */
 }
 
 .sobre {
-  height: 100vh;             /* ocupa 100% da altura da tela */
+  /* use min-height em vez de height */
+  min-height: 100svh; /* 100dvh/100svh lidam melhor com mobile */
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* distribui header, conteúdo e footer */
   background: #fff;
-  overflow: hidden;
+  /* não bloqueie o scroll interno */
+  overflow: visible;
 }
+
+/* mantém o footer preso ao fim sem travar o scroll */
+.footer {
+  margin-top: auto;
+}
+
 
 
