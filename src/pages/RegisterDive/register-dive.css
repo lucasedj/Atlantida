@@ -45,6 +45,12 @@
 html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 ::placeholder{ color: var(--ink-400); }
 
+.page.register {
+  padding: 30px 60px;
+  box-sizing: border-box; /* garante que o padding não "estoure" o layout */
+}
+
+
 /* ---------- Container ---------- */
 .register{
   max-width: 1060px;

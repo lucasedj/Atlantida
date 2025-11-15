@@ -2,13 +2,6 @@ import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "../article.css"; // Reaproveita o CSS genérico de artigos
 
-/**
- * Página de Artigo — "Proteger os Oceanos"
- * Estrutura:
- *  - Header simples (logo + CTA Download)
- *  - Conteúdo principal com meta, título, lide, imagem hero e seções de texto
- *  - Footer padronizado igual aos outros artigos
- */
 export default function Article3() {
   useEffect(() => {
     window.scrollTo(0, 0);
