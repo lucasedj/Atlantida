@@ -137,6 +137,7 @@ const Sidebar = () => {
             "#0070E0",
           ]),
         ];
+
       case "profundidade":
         return [
           ["Mergulho", "Profundidade (m)", { role: "style" }],
@@ -146,25 +147,38 @@ const Sidebar = () => {
             "#007FFF",
           ]),
         ];
+
       case "temperatura":
         return [
-          ["Mergulho", "Temp. fundo (°C)", { role: "style" }],
+          ["Mergulho", "Ar (°C)", "Superfície (°C)", "Fundo (°C)"],
           ...diveLogs.map((log, i) => [
             log.title || `Mergulho ${i + 1}`,
+            log.temperature?.air || 0,
+            log.temperature?.surface || 0,
             log.temperature?.bottom || 0,
-            "#1F8FFF",
           ]),
         ];
+
       case "geral":
         return [
-          ["Mergulho", "Tempo", "Profundidade", "Temp. Fundo"],
+          [
+            "Mergulho",
+            "Tempo",
+            "Profundidade",
+            "Ar (°C)",
+            "Superfície (°C)",
+            "Fundo (°C)"
+          ],
           ...diveLogs.map((log, i) => [
             log.title || `Mergulho ${i + 1}`,
             log.bottomTimeInMinutes || 0,
             log.depth || 0,
+            log.temperature?.air || 0,
+            log.temperature?.surface || 0,
             log.temperature?.bottom || 0,
           ]),
         ];
+
       default:
         return [];
     }
@@ -172,7 +186,6 @@ const Sidebar = () => {
 
   const getChartOptions = () => {
     const base = {
-      legend: { position: selectedChart === "geral" ? "top" : "none" },
       chartArea: { width: "70%" },
     };
 
@@ -183,6 +196,7 @@ const Sidebar = () => {
           title: "Tempo total de fundo por mergulho",
           hAxis: { title: "Minutos" },
           vAxis: { title: "Mergulhos" },
+          legend: { position: "none" },
         };
       case "profundidade":
         return {
@@ -190,20 +204,31 @@ const Sidebar = () => {
           title: "Profundidade por mergulho",
           hAxis: { title: "Metros" },
           vAxis: { title: "Mergulhos" },
+          legend: { position: "none" },
         };
       case "temperatura":
         return {
           ...base,
-          title: "Temperatura de fundo por mergulho",
-          hAxis: { title: "Temperatura (°C)" },
-          vAxis: { title: "Mergulhos" },
+          title: "Temperaturas por mergulho",
+          hAxis: { title: "Mergulho" },
+          vAxis: { title: "Temperatura (°C)" },
+          colors: ["#005CB8", "#1F8FFF", "#33C1FF"], // cores para ar, superfície, fundo
+          isStacked: false,
+          legend: { position: "top" },
         };
       case "geral":
         return {
           ...base,
           title: "Resumo geral por mergulho",
           isStacked: false,
-          colors: ["#0070E0", "#1F8FFF", "#70B8FF"], // cores para as 3 séries
+          legend: { position: "top" },
+          colors: [
+            "#0070E0", // Tempo
+            "#1F8FFF", // Profundidade
+            "#005CB8", // Ar
+            "#33C1FF", // Superfície
+            "#70B8FF"  // Fundo
+          ],
         };
       default:
         return base;
@@ -302,7 +327,7 @@ const Sidebar = () => {
                 >
                   <option value="tempo">Tempo de fundo</option>
                   <option value="profundidade">Profundidade</option>
-                  <option value="temperatura">Temp. fundo</option>
+                  <option value="temperatura">Temperaturas</option>
                   <option value="geral">Resumo geral</option>
                 </select>
               </div>
@@ -314,9 +339,9 @@ const Sidebar = () => {
                 </div>
               ) : (
                 <Chart
-                  chartType={selectedChart === "geral" ? "ColumnChart" : "ColumnChart"}
+                  chartType="ColumnChart"
                   width="100%"
-                  height="300px"
+                  height="650px"
                   data={getChartData()}
                   options={getChartOptions()}
                   loader={<div>Carregando gráfico...</div>}
