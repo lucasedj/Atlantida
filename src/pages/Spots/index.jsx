@@ -1405,7 +1405,7 @@ export default function Spots() {
             <div className="form-actions" style={{ marginTop: 8 }}>
           <button
             type="submit"
-            className="btn-primary btn-static"   // <- adicionada
+            className="btn-primary"   // <- adicionada
             disabled={submitting}>
             {submitting ? "CADASTRANDO..." : "CADASTRAR LOCAL DE MERGULHO"}
           </button>

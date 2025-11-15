@@ -1,9 +1,3 @@
-/* =====================================================
-   Registrar Mergulho — UI Kit (Steps 1–5)
-   - tokens coesos, estados acessíveis, progress variants
-   - mantém classes existentes (.register, .steps, .form etc.)
-===================================================== */
-
 /* ---------- Tokens ---------- */
 :root{
   /* Neutros */
@@ -28,7 +22,7 @@
 
   /* Bordas & sombras */
   --line:#e5e7eb;
-  --ring:#1e7cff26; /* ~15% alpha */
+  --ring:#1e7cff26;
   --shadow-1:0 1px 2px rgba(0,0,0,.04);
   --shadow-2:0 6px 16px rgba(30,124,255,.25);
 
@@ -46,7 +40,7 @@
   --step-num:20px;
 }
 
-/* ---------- Ajustes globais sutis ---------- */
+/* ---------- Ajustes globais ---------- */
 *{ -webkit-tap-highlight-color: transparent; }
 html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 ::placeholder{ color: var(--ink-400); }
@@ -77,13 +71,14 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 }
 
 /* =========================
-   Steps – responsivo e legível
+   Steps – responsivo
 ========================= */
 .steps{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--step-min), 1fr));
   gap: 10px;
   margin: 10px 0 8px;
+  width: 100%;
 }
 .steps__item{
   display: flex;
@@ -101,7 +96,7 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 .steps__item:is(:hover,:focus-visible){
   border-color:#dbeafe;
   background:#f8fbff;
-  outline: none;
+  outline:none;
   transform: translateY(-1px);
 }
 .steps__item.is-active{
@@ -122,14 +117,13 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 .steps__label{
   font-size: var(--step-font);
   line-height: 1.25;
-  white-space: normal;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* Barra de progresso (única definição) */
+/* Barra de progresso */
 .steps__progress{
   height: 6px; width: 100%;
   border-radius: 999px;
@@ -148,7 +142,9 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   border-radius: var(--radius);
   box-shadow: var(--shadow-1);
 }
-.form{ padding: 18px 18px 8px; }
+.form{
+  padding: 18px 18px 8px;
+}
 .form__title{
   margin: 0 0 12px;
   font-size: 1.05rem;
@@ -156,7 +152,6 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   color: var(--ink-900);
 }
 
-/* Grid 2 colunas */
 .form-grid{
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -177,7 +172,7 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   border: 1px solid #d1d5db;
   border-radius: var(--radius-sm);
   padding: 0 12px;
-  outline: none;
+  outline:none;
   transition: border-color .12s ease, box-shadow .12s ease, background .12s ease;
   background:#fff;
 }
@@ -190,27 +185,14 @@ html{ -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   color: var(--ink-600);
   cursor: not-allowed;
 }
-/* Estados acessíveis */
+
+/* Erros */
 .input[aria-invalid="true"]{
   border-color: var(--red-600) !important;
   box-shadow: 0 0 0 3px rgba(225,29,72,.15) !important;
 }
-.field--error .input{ border-color: var(--red-600); box-shadow: 0 0 0 3px rgba(225,29,72,.15); }
-.field--success .input{ border-color: var(--green-600); box-shadow: 0 0 0 3px rgba(22,163,74,.15); }
 
-/* Mensagem de erro abaixo do campo */
-.field__error{
-  margin-top: 6px;
-  color: var(--red-600);
-  font-size: .9rem;
-}
-
-/* Remove spinners de number */
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button{ -webkit-appearance: none; margin: 0; }
-input[type=number]{ -moz-appearance: textfield; }
-
-/* Textarea reaproveitando .input */
+/* Textarea */
 textarea.input{
   min-height: 140px;
   padding: 10px 12px;
@@ -218,60 +200,27 @@ textarea.input{
   line-height: 1.5;
 }
 
-/* Segmented control */
-.segmented{ display: inline-flex; gap: 8px; flex-wrap: wrap; }
-.segmented__btn{
-  height: 36px; padding: 0 14px;
-  border: 1px solid #d1d5db;
-  border-radius: var(--radius-sm);
-  background: #fff;
-  color: var(--ink-800);
-  font-weight: 700; cursor: pointer;
-  transition: border-color .12s ease, background .12s ease, transform .08s ease, box-shadow .12s ease;
-}
-.segmented__btn:hover{ transform: translateY(-1px); }
-.segmented__btn:is(:focus-visible){ box-shadow: 0 0 0 3px var(--ring); outline: none; }
-.segmented__btn.is-selected,
-.segmented__btn[aria-pressed="true"]{
-  border-color: #1e7cff;
-  background: #ffffff;
-  color: var(--ink-800);
-}
-
-/* Dropzone (Step 5) */
-.dropzone{
-  border: 2px dashed #d1d5db;
+/* Modais */
+.modal{
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  min-height: 160px;
-  display: grid; place-items: center;
-  color: var(--ink-600);
-  background: #fff;
-  transition: border-color .12s ease, background .12s ease, box-shadow .12s ease;
+  box-shadow: var(--shadow-2);
+  padding: 16px;
 }
-.dropzone:hover{
-  border-color:#94a3b8;
-  background:#f8fafc;
-}
-.dropzone:focus-within{
-  border-color: var(--blue-600);
-  box-shadow: 0 0 0 3px var(--ring);
-}
-.dropzone--clickable { cursor: pointer; }
-.dropzone--clickable:focus-within { box-shadow: 0 0 0 3px var(--ring); }
 
 /* ---------- Ações ---------- */
 .form-actions{
-  position: sticky;
-  bottom: 16px;
+  position: static !important;
   margin-top: 20px;
-  display: flex; justify-content: center; gap: 12px;
-  background: linear-gradient(#ffffff00, #ffffffaa 40%, #ffffff 70%);
+  display: flex;
+  justify-content: space-between; /* ajuste: um botão à esquerda, outro à direita */
+  gap: 12px;
   padding-top: var(--space-2);
-  -webkit-backdrop-filter:saturate(120%) blur(2px);
-  backdrop-filter:saturate(120%) blur(2px);
+  flex-wrap: wrap; /* permite quebrar em telas pequenas */
 }
 
-/* Botões — base compartilhada */
+/* ---------- Botões base ---------- */
 .btn,
 .btn-primary,
 .btn-outline,
@@ -280,24 +229,22 @@ textarea.input{
   border-radius: var(--radius);
   font-weight: 800;
   letter-spacing: .2px;
-  display: inline-flex; align-items: center; justify-content: center;
-  padding: 0 18px; text-decoration: none; cursor: pointer;
-  transition: transform .08s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease, color .12s ease;
-  outline: none;
+  display: inline-flex; align-items:center; justify-content:center;
+  padding: 0 18px;
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
+  text-decoration:none;
+  font-size: 14px; /* unificado */
+  flex: 1; /* mesma largura */
+  min-width: 140px; /* evita ficar muito estreito */
+  text-align: center;
 }
-.btn:active,
-.btn-primary:active,
-.btn-outline:active,
-.btn-secondary:active{ transform: translateY(0); }
-.btn:focus-visible,
-.btn-primary:focus-visible,
-.btn-outline:focus-visible,
-.btn-secondary:focus-visible{ box-shadow: 0 0 0 3px var(--ring); }
 
 /* Primário */
 .btn-primary{
-  min-width: 320px; border: none;
-  background: var(--blue-600); color: #fff;
+  border: none;
+  background: var(--blue-600);
+  color: #fff;
   box-shadow: var(--shadow-2);
 }
 .btn-primary:hover{
@@ -305,45 +252,22 @@ textarea.input{
   transform: translateY(-1px);
   box-shadow: 0 10px 22px rgba(11,105,255,.28);
 }
-.btn-primary:disabled{
-  background: #9ec5ff; cursor: not-allowed; box-shadow: none; transform: none;
-}
 
 /* Outline */
 .btn-outline{
-  min-width: 220px;
   border: 1px solid #cbd5e1;
-  background: #fff; color: var(--ink-800);
-}
-.btn-outline:hover{
-  transform: translateY(-1px);
-  border-color: #94a3b8;
-  background: #f8fafc;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, .06);
-}
-.btn-outline:disabled{
-  color: var(--ink-500);
-  border-color: #e2e8f0;
-  background: #fff; cursor: not-allowed; box-shadow: none; transform: none;
+  background:#fff;
+  color: var(--ink-800);
 }
 
 /* Secundário */
 .btn-secondary{
-  min-width: 220px;
   border: 1px solid #d1d5db;
-  background: #fff; color: #111827;
-}
-.btn-secondary:hover{
-  transform: translateY(-1px);
-  border-color: #c7d2fe;
-  box-shadow: 0 8px 18px rgba(0,0,0,.06);
+  background:#fff;
+  color:#111827;
 }
 
-/* ---------- Utilidades ---------- */
-.u-muted{ color: var(--ink-500); }
-.u-soft{ background: var(--bg-soft); }
-
-/* ---------- Responsivo ---------- */
+/* ---------- Responsivo importante ---------- */
 @media (max-width: 1024px){
   :root{
     --step-min:190px;
@@ -351,93 +275,95 @@ textarea.input{
     --step-num:18px;
   }
 }
-@media (max-width: 780px){
-  :root{
-    --step-min:160px;
-    --step-font:.8rem;
-    --step-num:18px;
+
+/* 🔥 Correções definitivas do mobile */
+@media (max-width: 780px) {
+
+  /* Steps ajustados para evitar overflow */
+  .steps {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
-  .steps{ grid-template-columns: 1fr 1fr; }
-  .form-actions{ padding-bottom: var(--space-2); }
-  .btn-primary{ min-width: 100%; }
-}
 
-/* Acessibilidade para labels “ocultas” */
-.visually-hidden{
-  position: absolute !important;
-  height: 1px; width: 1px;
-  overflow: hidden; clip: rect(1px, 1px, 1px, 1px);
-  white-space: nowrap; border: 0; padding: 0; margin: -1px;
-}
+  /* Botões em largura total */
+  .btn-primary,
+  .btn-outline,
+  .btn-secondary {
+    width: 100%;
+    min-width: 0 !important;
+  }
 
-/* ---------- Movimento reduzido ---------- */
-@media (prefers-reduced-motion: reduce){
-  .steps__item,
-  .segmented__btn,
-  .btn, .btn-primary, .btn-outline, .btn-secondary,
-  .dropzone{
-    transition: none !important;
+  /* Form actions empilha corretamente */
+  .form-actions {
+    flex-direction: column;
+    gap: 12px;
   }
 }
 
-/* Grid de previews (Step 5) */
-.thumbs-grid{
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-}
-.thumb{
-  position: relative;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: #fff;
-}
-.thumb img{
-  width: 100%; height: 100%;
-  object-fit: cover; display: block;
-  aspect-ratio: 1 / 1;
-}
-.thumb__remove{
-  position: absolute; top: 6px; right: 6px;
-  width: 24px; height: 24px; line-height: 24px;
-  border: none; border-radius: 999px;
-  background: rgba(0,0,0,.55); color: #fff;
-  font-weight: 800; cursor: pointer;
-}
-.thumb__remove:hover{ background: rgba(0,0,0,.75); }
-
-/* ============ Autocomplete ============ */
-.auto{ position:relative; }
-.auto .input[aria-expanded="true"]{
-  border-color: var(--blue-600);
-  box-shadow: 0 0 0 3px var(--ring);
-}
-.auto__panel{
-  position:absolute; inset-inline:0; top:100%; margin-top:6px; z-index:40;
-  background:#fff; border:1px solid #e5e7eb; border-radius:12px;
-  box-shadow:0 12px 28px rgba(2,32,71,.12); padding:6px;
-  max-height:280px; overflow:auto;
-  overscroll-behavior: contain;
-}
-.auto__panel::-webkit-scrollbar{ width: 10px; }
-.auto__panel::-webkit-scrollbar-thumb{
-  background:#e2e8f0; border-radius:999px;
-}
-.auto__item{
-  width:100%; display:flex; align-items:center; justify-content:space-between;
-  gap:10px; padding:10px 12px; border:0; background:#fff; cursor:pointer; border-radius:10px;
-  transition:background .12s ease, transform .06s ease;
-  text-align:left;
-}
-.auto__item.is-active, .auto__item:hover{ background:#f6f8ff; }
-.auto__item.is-muted{ color:#64748b; cursor:default; }
-.auto__create{ font-weight:800; }
-.auto__title{ font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.auto__sub{ color:#64748b; }
-
-/* Redução leve adicional das labels dos steps em telas estreitas */
 @media (max-width: 420px){
   .steps__label{ -webkit-line-clamp: 1; }
+}
+
+/* wrapper precisa ser relativo */
+.auto {
+  position: relative;
+}
+
+/* painel flutuante */
+.auto__panel {
+  position: absolute;
+  z-index: 999;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+/* cada item (button) */
+.auto__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  font-weight: 600;
+  text-align: left;
+  transition: background .12s ease;
+  border-radius: 6px;
+  color: var(--ink-800);
+}
+
+/* hover / ativo */
+.auto__item:hover,
+.auto__item.is-active {
+  background: #f0f4ff;
+}
+
+/* subtítulo ou nota */
+.auto__sub {
+  font-size: .75rem;
+  color: var(--ink-500);
+  margin-left: 8px;
+}
+
+/* criar novo item */
+.auto__create {
+  font-weight: 700;
+  color: var(--blue-600);
+  text-align: center;
+}
+
+/* loading / muted */
+.auto__item.is-muted {
+  color: var(--ink-400);
+  cursor: default;
+  font-style: italic;
 }

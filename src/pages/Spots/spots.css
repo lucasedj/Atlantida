@@ -748,10 +748,6 @@ textarea.input{ min-height:7.5rem; padding-top:.625rem; padding-bottom:.625rem; 
   z-index: 1;
 }
 
-/* ===== FIX: não deixa o botão "CADASTRAR LOCAL DE MERGULHO" se mover ===== */
-.spots__form .form-actions .btn-primary,
-.spots__form .form-actions .btn-primary:hover,
-.spots__form .form-actions .btn-primary:active{
-  transform: none !important;
-  filter: none !important;   /* opcional: remove brilho pra não parecer "mover" */
+.spots__form .form-actions {
+  position: static !important;
 }
