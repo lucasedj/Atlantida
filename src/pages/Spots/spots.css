@@ -315,6 +315,27 @@
 }
 .spots__reviewName{ font-weight:800; color:var(--c-ink-900); }
 .spots__reviewDate{ color:var(--c-ink-600); font-size:.85rem; }
+
+/* NOVO: meta de visibilidade / nível nas avaliações */
+.spots__reviewMeta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.4rem;
+  margin:.15rem 0 .55rem;
+}
+.spots__pill{
+  display:inline-flex;
+  align-items:center;
+  padding:.1rem .6rem;
+  border-radius:999px;
+  background: color-mix(in oklab, #e0edff 65%, #ffffff 35%);
+  border:1px solid color-mix(in oklab, var(--c-blue-700) 18%, #dbeafe 82%);
+  font-size:.78rem;
+  font-weight:700;
+  color:var(--c-ink-700);
+  letter-spacing:.01em;
+}
+
 .spots__reviewText{ margin:.25rem 0 .6rem; color:var(--c-ink-800); line-height:1.5; }
 .spots__reviewPics{ display:flex; gap:.5rem; flex-wrap:wrap; }
 .spots__reviewPics img{

@@ -282,6 +282,14 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
   const [level, setLevel] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const mapLevelToNumber = (val) => {
+  if (!val) return undefined;
+  const v = String(val).toUpperCase();
+  if (v === "BAIXO") return 1;
+  if (v === "MODERADO") return 2;
+  if (v === "ALTO") return 3;
+  return undefined;
+};
 
   const reviewPhotosId = useId();
 
@@ -322,24 +330,24 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
   }, []);
 
   const submit = useCallback(async () => {
-    if (!rating) return;
-    setSubmitting(true);
-    try {
-      const photos = await filesToBase64(files.map((f) => f.file));
-      const text = (notes || "").trim();
-      await onSubmit?.({
-        rating,
-        visibility: visibility || undefined,
-        difficultyLevel: level || undefined,
-        comment: text,
-        comments: text,
-        photos,
-      });
-      onClose?.();
-    } finally {
-      setSubmitting(false);
-    }
-  }, [files, filesToBase64, level, notes, onClose, onSubmit, rating, visibility]);
+  if (!rating) return;
+  setSubmitting(true);
+  try {
+    const photos = await filesToBase64(files.map((f) => f.file));
+    const text = (notes || "").trim();
+    await onSubmit?.({
+      rating,
+      visibility: visibility || undefined,
+      difficultyLevel: level || undefined,
+      comment: text,
+      comments: text,
+      photos,
+    });
+    onClose?.();
+  } finally {
+    setSubmitting(false);
+  }
+}, [files, filesToBase64, level, notes, onClose, onSubmit, rating, visibility]);
 
   if (!open) return null;
   return (
@@ -430,7 +438,7 @@ function ReviewModal({ open, onClose, onSubmit, spotName = "" }) {
 
               <div className="modal__fieldBlock">
                 <div className="modal__label">Nível de mergulho</div>
-                <div className="modal__sublabel">Como você entrou na água?</div>
+                <div className="modal__sublabel">Qual foi o nível de dificuldade?</div>
                 <div className="segmented" role="radiogroup" aria-label="Nível de mergulho">
                   {["ALTO", "MODERADO", "BAIXO"].map((v) => (
                     <button
@@ -565,9 +573,28 @@ const normalizeComment = (c = {}) => {
   const stableId =
     c._id ??
     c.id ??
-    `c:${spotId || "spot"}|${String(userId || userName || "anon").toLowerCase()}|${new Date(createdAt)
+    `c:${spotId || "spot"}|${String(userId || userName || "anon").toLowerCase()}|${new Date(
+      createdAt
+    )
       .toISOString()
       .slice(0, 19)}|${String(text).toLowerCase().slice(0, 40)}`;
+
+  // 🔎 Normaliza visibilidade e nível com vários nomes possíveis
+  const visibility =
+    c.visibility ??
+    c.visibilidade ??
+    c.waterVisibility ??
+    c.water_visibility ??
+    c.visibilityLevel ??
+    null;
+
+  const difficultyLevel =
+    c.difficultyLevel ??
+    c.diveLevel ??
+    c.level ??
+    c.nivelMergulho ??
+    c.nivel_mergulho ??
+    null;
 
   return {
     ...c,
@@ -578,9 +605,12 @@ const normalizeComment = (c = {}) => {
     comment: text,
     photos: c.photos ?? c.images ?? [],
     createdAt,
+    visibility,
+    difficultyLevel,
     __spotId: spotId,
   };
 };
+
 
 const diveLogPhotos = (log) => {
   const list = Array.isArray(log?.photos)
@@ -610,6 +640,35 @@ const avgFrom = (spot, reviews) => {
   }
   return spot?.avgRating ?? spot?.rating ?? 0;
 };
+const summarizeFieldFromReviews = (reviews, field) => {
+  if (!Array.isArray(reviews) || !reviews.length) return null;
+
+  const counts = {};
+  for (const r of reviews) {
+    let v = r?.[field];
+    if (!v) continue;
+    v = String(v).trim().toUpperCase();
+    if (!v) continue;
+    counts[v] = (counts[v] || 0) + 1;
+  }
+
+  let best = null;
+  let bestCount = 0;
+  for (const [value, count] of Object.entries(counts)) {
+    if (count > bestCount) {
+      best = value;
+      bestCount = count;
+    }
+  }
+  return best;
+};
+
+const summarizeVisibilityFromReviews = (reviews) =>
+  summarizeFieldFromReviews(reviews, "visibility");
+
+const summarizeDifficultyFromReviews = (reviews) =>
+  summarizeFieldFromReviews(reviews, "difficultyLevel");
+
 const shortDesc = (txt, n = 120) => {
   const t = (txt || "").trim();
   if (!t) return "—";
@@ -1211,22 +1270,35 @@ export default function Spots() {
 
               <div className="spots__list" role="list">
                 {filtered.map((s) => {
-                  const rating = s.avgRating ?? s.rating ?? 0;
+                  const isSelected = String(selected?._id) === String(s._id);
+
+                  // ⭐ se for o selecionado, usa a mesma média dos detalhes (avgFrom + reviews)
+                  const rating = isSelected
+                    ? avgFrom(selected, reviews)
+                    : (s.avgRating ?? s.rating ?? 0);
+
+                  // mesma lógica para o contador
+                  const count = isSelected
+                    ? reviews.length
+                    : (s.reviewsCount ?? 0);
+
                   return (
                     <button
                       key={s._id}
                       type="button"
-                      className={`spots__item${selected?._id === s._id ? " is-active" : ""}`}
+                      className={`spots__item${isSelected ? " is-active" : ""}`}
                       onClick={() => { setSelected(s); setTab("info"); }}
-                      aria-pressed={selected?._id === s._id}
+                      aria-pressed={isSelected}
                     >
                       <img className="spots__itemImg" src={thumbFromSpot(s)} alt="" />
                       <div className="spots__itemMeta">
                         <div className="spots__itemTitle">{s.name || "Ponto de mergulho"}</div>
+
                         <div className="spots__itemSub" style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <StarRating value={rating} />
-                          {typeof s.reviewsCount === "number" && <small>({s.reviewsCount})</small>}
+                          {count > 0 && <small>({count})</small>}
                         </div>
+
                         <div className="spots__itemDesc" style={{ color: "var(--c-ink-600)" }}>
                           {shortDesc(s.description, 110)}
                         </div>
@@ -1237,7 +1309,8 @@ export default function Spots() {
                 {!filtered.length && <div className="spots__empty">Nenhum local encontrado.</div>}
               </div>
             </aside>
-
+            
+            
             {/* Detalhes */}
             <section className="spots__details card">
               {selected ? (
@@ -1255,19 +1328,43 @@ export default function Spots() {
                   </div>
 
                   {tab === "info" && (
-                    <div className="spots__info">
-                      <p className="spots__desc">{selected.description || "Sem descrição."}</p>
-                      <div className="spots__metaGrid">
-                        <div><strong>Nível de mergulho:</strong><span /><span>{selected.difficultyLevel ?? "—"}</span></div>
-                        <div><strong>Visibilidade</strong><span /><span>{selected.visibility ?? "—"}</span></div>
-                        <div><strong>Coordenadas</strong><span /><span>
-                          {Array.isArray(selected?.location?.coordinates)
-                            ? `${selected.location.coordinates[1]?.toFixed?.(5)}, ${selected.location.coordinates[0]?.toFixed?.(5)}`
-                            : "—"}
-                        </span></div>
+                      <div className="spots__info">
+                        <p className="spots__desc">{selected.description || "Sem descrição."}</p>
+
+                        {(() => {
+                          const difficultyFromReviews = summarizeDifficultyFromReviews(reviews);
+                          const visibilityFromReviews = summarizeVisibilityFromReviews(reviews);
+
+                          const difficulty = difficultyFromReviews || selected.difficultyLevel || "—";
+                          const visibility = visibilityFromReviews || selected.visibility || "—";
+
+                          return (
+                            <div className="spots__metaGrid">
+                              <div>
+                                <strong>Nível de mergulho:</strong>
+                                <span />
+                                <span>{difficulty}</span>
+                              </div>
+                              <div>
+                                <strong>Visibilidade</strong>
+                                <span />
+                                <span>{visibility}</span>
+                              </div>
+                              <div>
+                                <strong>Coordenadas</strong>
+                                <span />
+                                <span>
+                                  {Array.isArray(selected?.location?.coordinates)
+                                    ? `${selected.location.coordinates[1]?.toFixed?.(5)}, ${selected.location.coordinates[0]?.toFixed?.(5)}`
+                                    : "—"}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
-                    </div>
-                  )}
+                    )}
+
 
                   {tab === "reviews" && (
                     <div className="spots__reviews">
@@ -1277,39 +1374,37 @@ export default function Spots() {
                         <div className="spots__empty">Ainda não há avaliações para este ponto.</div>
                       )}
                       {!loadingReviews && !reviewsErr && reviews.map((r) => (
-                        <article key={r._id || r.id} className="spots__review">
-                          <header className="spots__reviewHead">
-                            <div className="spots__reviewWho">
-                              <div className="spots__avatar" aria-hidden>🧭</div>
-                              <div>
-                                <div className="spots__reviewName">
-                                  {r.userName ||
-                                   r.name ||
-                                   r.displayName ||
-                                   r.fullName ||
-                                   r?.user?.name ||
-                                   [r?.user?.firstName, r?.user?.lastName].filter(Boolean).join(" ") ||
-                                   r?.author?.name ||
-                                   r?.createdBy?.name ||
-                                   r?.owner?.name ||
-                                   r?.username ||
-                                   "Mergulhador(a)"}
-                                </div>
-                                <div className="spots__reviewDate">{fmtDate(r.createdAt || r.date)}</div>
-                              </div>
-                            </div>
-                            <StarRating value={r.rating || 0} />
-                          </header>
+  <article key={r._id || r.id} className="spots__review">
+    <header className="spots__reviewHead">
+      {/* ...seu header existente... */}
+      <StarRating value={r.rating || 0} />
+    </header>
 
-                          {r.comment && <p className="spots__reviewText">{r.comment}</p>}
+    {/* ⬇️ NOVO BLOCO AQUI */}
+    {(r.visibility || r.difficultyLevel) && (
+      <div className="spots__reviewMeta">
+        {r.visibility && (
+          <span className="spots__pill">
+            Visibilidade: {r.visibility}
+          </span>
+        )}
+        {r.difficultyLevel && (
+          <span className="spots__pill">
+            Nível: {r.difficultyLevel}
+          </span>
+        )}
+      </div>
+    )}
 
-                          {diveLogPhotos(r).length > 0 && (
-                            <div className="spots__reviewPics">
-                              {diveLogPhotos(r).map((src, i) => (<img key={i} src={src} alt={`Foto ${i + 1}`} />))}
-                            </div>
-                          )}
-                        </article>
-                      ))}
+    {r.comment && <p className="spots__reviewText">{r.comment}</p>}
+
+    {diveLogPhotos(r).length > 0 && (
+      <div className="spots__reviewPics">
+        {diveLogPhotos(r).map((src, i) => (<img key={i} src={src} alt={`Foto ${i + 1}`} />))}
+      </div>
+    )}
+  </article>
+))}
                     </div>
                   )}
 
