@@ -15,7 +15,6 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // backup para poder cancelar edição
   const [formBackup, setFormBackup] = useState(null);
 
   const [form, setForm] = useState({
@@ -33,7 +32,6 @@ export default function Profile() {
     number: "",
   });
 
-  // yyyy-mm-dd para <input type="date" />
   function toInputDate(d) {
     if (!d) return "";
     const dt = new Date(d);
@@ -68,9 +66,9 @@ export default function Profile() {
       me()
         .then((u) => {
           hydrate(u);
-          try { localStorage.setItem("user", JSON.stringify(u)); } catch {}
+          try { localStorage.setItem("user", JSON.stringify(u)); } catch { }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, []);
 
@@ -79,14 +77,12 @@ export default function Profile() {
     setForm((f) => ({ ...f, [name]: value }));
   }
 
-  // entrar no modo edição: cria um snapshot para poder cancelar
   function handleEdit() {
     setMsg("");
     setFormBackup(form);
     setIsEditing(true);
   }
 
-  // cancelar: restaura snapshot e sai do modo edição
   function handleCancel() {
     if (formBackup) setForm(formBackup);
     setIsEditing(false);
@@ -107,9 +103,8 @@ export default function Profile() {
       });
 
       setUser(updated);
-      try { localStorage.setItem("user", JSON.stringify(updated)); } catch {}
+      try { localStorage.setItem("user", JSON.stringify(updated)); } catch { }
 
-      // atualiza backup com o salvo
       setFormBackup({
         firstName: updated.firstName ?? "",
         lastName: updated.lastName ?? "",
@@ -147,7 +142,6 @@ export default function Profile() {
 
   return (
     <div className="logged">
-      {/* ===== Sidebar ===== */}
       <aside className="logged__sidebar" aria-label="Navegação principal">
         <div className="logged__brand">
           <img
@@ -181,7 +175,6 @@ export default function Profile() {
         </Link>
       </aside>
 
-      {/* ===== Conteúdo ===== */}
       <main className="logged__content">
         <div className="page profile">
           <header className="profile__head">
@@ -191,7 +184,6 @@ export default function Profile() {
             </p>
           </header>
 
-          {/* Dados pessoais */}
           <section className="profile__section">
             <h2 className="profile__sectionTitle">Dados pessoais</h2>
             <div className="profile__grid">
@@ -242,7 +234,6 @@ export default function Profile() {
             </div>
           </section>
 
-          {/* Alterar senha (separado; não envia no PUT de perfil) */}
           <section className="profile__section">
             <h2 className="profile__sectionTitle">Alterar senha</h2>
             <div className="profile__grid">
@@ -279,7 +270,6 @@ export default function Profile() {
             </div>
           </section>
 
-          {/* Endereço */}
           <section className="profile__section">
             <h2 className="profile__sectionTitle">Endereço</h2>
             <div className="profile__grid">
@@ -374,7 +364,6 @@ export default function Profile() {
             </div>
           </section>
 
-          {/* Mensagens */}
           {msg && (
             <p
               aria-live="polite"
@@ -384,7 +373,6 @@ export default function Profile() {
             </p>
           )}
 
-          {/* Ações */}
           <div className="profile__actions">
             <button type="button" className="btn-danger-outline">
               <span className="profile__trash" aria-hidden></span>
@@ -393,7 +381,7 @@ export default function Profile() {
 
             <button
               type="button"
-              className="btn-primary"
+              className="btn-primary-small"
               onClick={handleEdit}
               disabled={isEditing}
             >
@@ -404,29 +392,22 @@ export default function Profile() {
               <>
                 <button
                   type="button"
-                  className="btn-primary"
+                  className="btn-primary-small"
                   onClick={handleSave}
                   disabled={saving}
                   style={{ marginLeft: 8 }}
                 >
-                  {saving ? "Salvando..." : "Salvar"}
+                  {saving ? "SALVANDO..." : "SALVAR"}
                 </button>
 
                 <button
                   type="button"
+                  className="btn-danger-outline"
                   onClick={handleCancel}
-                  style={{
-                    marginLeft: 8,
-                    padding: "10px 16px",
-                    border: "1px solid #9aa3af",
-                    background: "transparent",
-                    color: "#374151",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                  }}
+                  style={{ marginLeft: 8 }}
                   aria-label="Cancelar edição"
                 >
-                  Cancelar
+                  CANCELAR
                 </button>
               </>
             )}
