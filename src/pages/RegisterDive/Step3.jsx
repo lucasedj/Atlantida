@@ -1,5 +1,5 @@
 // src/pages/RegisterDive/Step3.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useDraftField, readDiveDraft, writeDiveDraft } from "./useDiveDraft";
 
@@ -24,24 +24,11 @@ export default function Step3() {
   const [tBottom, setTBottom]   = useDraftField("tBottom", "");
 
   /* ---------- Ondulação (multi) com Set + persistência ---------- */
-  const [swell, setSwell] = useState(new Set());
-  useEffect(() => {
-    const d = readDiveDraft() || {};
-    if (Array.isArray(d.swell)) setSwell(new Set(d.swell));
-  }, []);
-  useEffect(() => {
-    writeDiveDraft({ swell: Array.from(swell) });
-  }, [swell]);
+/* ---------- Ondulação (single) ---------- */
+const [swell, setSwell] = useDraftField("swell", "");
 
   /* ---------- Helpers UI ---------- */
   const selectOne = useCallback((value, setFn) => setFn(value), []);
-  const toggleInSet = useCallback((value, setFn) => {
-    setFn(prev => {
-      const next = new Set(prev);
-      next.has(value) ? next.delete(value) : next.add(value);
-      return next;
-    });
-  }, []);
 
   const SegBtn = ({ active, onClick, children }) => (
     <button
@@ -249,16 +236,16 @@ export default function Step3() {
               </div>
             </div>
 
-            {/* Ondulação (multi) */}
+            {/* Ondulação (single) */}
             <div className="field" style={{ marginTop: 12 }}>
               <label className="label">Ondulação</label>
-              <span className="hint">Como estava a ondulação? (pode marcar mais de um)</span>
+              <span className="hint">Como estava a ondulação?</span>
               <div className="segmented" style={{ flexWrap: "wrap", rowGap: 8 }}>
                 {["Nenhum","Leve","Médio","Forte"].map(v => (
                   <SegBtn
                     key={v}
-                    active={swell.has(v)}
-                    onClick={() => toggleInSet(v, setSwell)}
+                    active={swell === v}
+                    onClick={() => selectOne(v, setSwell)}
                   >
                     {v}
                   </SegBtn>

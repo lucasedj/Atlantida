@@ -229,35 +229,6 @@
   background-color: #1D4ED8;
 }
 
-.corals {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.left-coral,
-.right-coral {
-  position: fixed;
-  height: auto;
-  max-width: 400px;
-  width: 20vw;     
-  min-width: 150px;
-}
-
-.left-coral {
-  bottom: -60px; /* empurra para fora da tela no eixo Y */
-  left: -100px;  /* empurra mais para a esquerda */
-}
-
-.right-coral {
-  bottom: -60px; /* empurra para fora da tela no eixo Y */
-  right: -100px; /* empurra mais para a direita */
-}
-
-
 /* Erros */
 .error {
   font-size: 12px;

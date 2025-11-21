@@ -814,7 +814,7 @@ export default function Spots() {
 
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(null);
-  const [tab, setTab] = useState("info"); // info | reviews
+  const [tab, setTab] = useState("reviews");
 
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -868,29 +868,92 @@ export default function Spots() {
     }
   }, []);
 
-  /* ==== Spots ==== */
+    /* ==== Spots (com média e qtd de avaliações) ==== */
   useEffect(() => {
     const ac = new AbortController();
     let active = true;
+
     (async () => {
       try {
         setLoadingSpots(true);
-        const data = await apiFetch("/api/divingSpots", { auth: true, signal: ac.signal });
+
+        // 1) Busca lista de spots normalmente
+        const data = await apiFetch("/api/divingSpots", {
+          auth: true,
+          signal: ac.signal,
+        });
+
         if (!active) return;
+
         const arr = Array.isArray(data) ? data : [];
-        setSpots(arr);
-        if (arr.length && !selected) setSelected(arr[0]);
+
+        // 2) Para cada spot, busca os comentários e calcula média + quantidade
+        const enriched = await Promise.all(
+          arr.map(async (spot) => {
+            try {
+              const fromApi = await fetchCommentsForSpot(
+                spot._id,
+                fetchWithAuthFallback,
+                ac.signal
+              );
+              const local = loadLocalReviews(spot._id);
+              const raw = [...(fromApi || []), ...(local || [])];
+
+              const norm = raw
+                .map(normalizeComment)
+                .filter(
+                  (c) =>
+                    getSpotId(c) === String(spot._id) || !getSpotId(c)
+                );
+
+              const reviewsForSpot = uniqueById(norm);
+
+              if (!reviewsForSpot.length) {
+                return {
+                  ...spot,
+                  avgRating: spot.avgRating ?? spot.rating ?? 0,
+                  reviewsCount: spot.reviewsCount ?? 0,
+                };
+              }
+
+              const sum = reviewsForSpot.reduce(
+                (acc, r) => acc + (Number(r.rating) || 0),
+                0
+              );
+              const avg = sum / reviewsForSpot.length;
+
+              return {
+                ...spot,
+                avgRating: avg,
+                reviewsCount: reviewsForSpot.length,
+              };
+            } catch (e) {
+              // se der erro, não quebra a tela, só volta com os dados originais
+              return {
+                ...spot,
+                avgRating: spot.avgRating ?? spot.rating ?? 0,
+                reviewsCount: spot.reviewsCount ?? 0,
+              };
+            }
+          })
+        );
+
+        // 3) Salva a lista já enriquecida
+        setSpots(enriched);
+        if (enriched.length && !selected) setSelected(enriched[0]);
       } catch (e) {
         if (active) setSpots([]);
       } finally {
         if (active) setLoadingSpots(false);
       }
     })();
+
     return () => {
       active = false;
       ac.abort();
     };
-  }, []); // 1x
+  }, [fetchWithAuthFallback]); // ← importante usar o helper
+
 
   /* ==== Cache p/ nomes de usuários e hidratação ==== */
   const userNameCacheRef = useRef(new Map()); // id -> name|null
@@ -1191,11 +1254,12 @@ export default function Spots() {
   }, [query, spots]);
 
   const onSearchGo = useCallback(() => {
-    if (filtered.length) {
-      setSelected(filtered[0]);
-      setTab("info");
-    }
-  }, [filtered]);
+  if (filtered.length) {
+    setSelected(filtered[0]);
+    setTab("reviews"); // garante que fique na aba de avaliações
+  }
+}, [filtered]);
+
 
   return (
     <div className="logged">
@@ -1287,7 +1351,7 @@ export default function Spots() {
                       key={s._id}
                       type="button"
                       className={`spots__item${isSelected ? " is-active" : ""}`}
-                      onClick={() => { setSelected(s); setTab("info"); }}
+                      onClick={() => { setSelected(s); }}
                       aria-pressed={isSelected}
                     >
                       <img className="spots__itemImg" src={thumbFromSpot(s)} alt="" />
@@ -1373,38 +1437,61 @@ export default function Spots() {
                       {!loadingReviews && !reviewsErr && reviews.length === 0 && (
                         <div className="spots__empty">Ainda não há avaliações para este ponto.</div>
                       )}
-                      {!loadingReviews && !reviewsErr && reviews.map((r) => (
-  <article key={r._id || r.id} className="spots__review">
-    <header className="spots__reviewHead">
-      {/* ...seu header existente... */}
-      <StarRating value={r.rating || 0} />
-    </header>
+                      {!loadingReviews && !reviewsErr && reviews.map((r) => {
+  const displayName =
+    r.userName ||
+    (r.user && (
+      r.user.name ||
+      [r.user.firstName, r.user.lastName].filter(Boolean).join(" ")
+    )) ||
+    "Mergulhador anônimo";
+  return (
+    <article key={r._id || r.id} className="spots__review">
+      <header className="spots__reviewHead">
+        <div className="spots__reviewUser">
+          <div className="spots__reviewAvatar">
+            {displayName.charAt(0).toUpperCase()}
+          </div>
+          <div className="spots__reviewUserInfo">
+            <strong className="spots__reviewName">{displayName}</strong>{" "}
+<span className="spots__reviewDate">
+  {fmtDate(r.createdAt)}
+</span>
 
-    {/* ⬇️ NOVO BLOCO AQUI */}
-    {(r.visibility || r.difficultyLevel) && (
-      <div className="spots__reviewMeta">
-        {r.visibility && (
-          <span className="spots__pill">
-            Visibilidade: {r.visibility}
-          </span>
-        )}
-        {r.difficultyLevel && (
-          <span className="spots__pill">
-            Nível: {r.difficultyLevel}
-          </span>
-        )}
-      </div>
-    )}
+          </div>
+        </div>
 
-    {r.comment && <p className="spots__reviewText">{r.comment}</p>}
+        <StarRating value={r.rating || 0} />
+      </header>
 
-    {diveLogPhotos(r).length > 0 && (
-      <div className="spots__reviewPics">
-        {diveLogPhotos(r).map((src, i) => (<img key={i} src={src} alt={`Foto ${i + 1}`} />))}
-      </div>
-    )}
-  </article>
-))}
+      {(r.visibility || r.difficultyLevel) && (
+        <div className="spots__reviewMeta">
+          {r.visibility && (
+            <span className="spots__pill">
+              Visibilidade: {r.visibility}
+            </span>
+          )}
+          {r.difficultyLevel && (
+            <span className="spots__pill">
+              Nível: {r.difficultyLevel}
+            </span>
+          )}
+        </div>
+      )}
+
+      {r.comment && <p className="spots__reviewText">{r.comment}</p>}
+
+      {diveLogPhotos(r).length > 0 && (
+        <div className="spots__reviewPics">
+          {diveLogPhotos(r).map((src, i) => (
+            <img key={i} src={src} alt={`Foto ${i + 1}`} />
+          ))}
+        </div>
+      )}
+    </article>
+  );
+})}
+
                     </div>
                   )}
 
@@ -1475,8 +1562,7 @@ export default function Spots() {
                       withBase("images/Upload.png"),
                       withBase("images/upload.png"),
                     ]}
-                    alt="Upload"
-                    className="dropzone__icon"
+                    
                   />
                   <div className="dropzone__text">
                     <strong>Selecione do seu dispositivo</strong>
