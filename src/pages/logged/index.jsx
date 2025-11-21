@@ -360,7 +360,7 @@ function WeatherCard({ user }) {
   );
 }
 
-/* ====== Mapa com seus mergulhos (Leaflet) — aceita vários formatos ====== */
+/* ====== Mapa com seus mergulhos (Leaflet) ====== */
 function DivesMap() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -371,6 +371,7 @@ function DivesMap() {
   const LRef = React.useRef(null);
   const mapObjRef = React.useRef(null);
   const markersRef = React.useRef([]);
+  const diveIconRef = React.useRef(null); // 🔵 ícone custom
 
   // injeta CSS do Leaflet uma única vez
   useEffect(() => {
@@ -423,7 +424,12 @@ function DivesMap() {
     if (!o || typeof o !== "object") return null;
     if (Number.isFinite(o.lat) && Number.isFinite(o.lng)) return normalizeLatLng(o.lat, o.lng);
     if (Number.isFinite(o.latitude) && Number.isFinite(o.longitude)) return normalizeLatLng(o.latitude, o.longitude);
-    if (o.type === "Point" && Array.isArray(o.coordinates)) return tryFromCoordsArray(o.coordinates); // GeoJSON
+    // GeoJSON → [lng, lat]
+    if (o.type === "Point" && Array.isArray(o.coordinates)) {
+      const [lng, lat] = o.coordinates;
+      return normalizeLatLng(lat, lng); // ✔ Leaflet espera [lat, lng]
+    }
+
     if (Array.isArray(o.coords)) return tryFromCoordsArray(o.coords);
     if (Array.isArray(o.coordinates)) return tryFromCoordsArray(o.coordinates);
     if (o.location) { const r = tryFromObj(o.location); if (r) return r; }
@@ -499,13 +505,19 @@ function DivesMap() {
     (async () => {
       if (!LRef.current) {
         const L = await import("leaflet");
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-          iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-          shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-        });
         LRef.current = L;
+
+        // 🔵 Ícone personalizado usando spots.png
+        diveIconRef.current = L.icon({
+          iconUrl: "/images/spots.png",
+          iconRetinaUrl: "/images/spots.png",
+          iconSize: [32, 32],        // ajusta se precisar
+          iconAnchor: [16, 32],      // ponto "no chão" do pin
+          popupAnchor: [0, -32],     // onde o popup abre
+          className: "divesMap__marker",
+        });
       }
+
       const L = LRef.current;
 
       if (!mapObjRef.current && mapRef.current) {
@@ -533,7 +545,11 @@ function DivesMap() {
         const latlng = getLatLng(log);
         if (!latlng) return;
         const [lat, lng] = latlng;
-        const Lm = L.marker([lat, lng]);
+
+        const Lm = L.marker([lat, lng], {
+          icon: diveIconRef.current || undefined, // 👈 força usar spots.png
+        });
+
         const title = log?.title || "Mergulho";
         const dateStr = (() => {
           const d = new Date(log?.date);
@@ -543,6 +559,7 @@ function DivesMap() {
           (log?.divingSpotId?.name) || (log?.divingSpotId?.title) ||
           (log?.divingSpot?.name) || (log?.spot?.name) || "—";
         const depth = log?.depth != null ? `${log.depth} m` : "—";
+
         Lm.bindPopup(
           `<div style="font-weight:700;margin-bottom:4px">${title}</div>
            <div><strong>Data:</strong> ${dateStr}</div>
@@ -565,6 +582,7 @@ function DivesMap() {
       }
     })();
   }, [filtered]);
+  // ⬆ se quiser, pode adicionar [] em vez de [filtered] se os logs não mudam tanto
 
   return (
     <section className="places" aria-labelledby="places-title">
@@ -621,6 +639,7 @@ function DivesMap() {
     </section>
   );
 }
+
 
 /* Tabela de mergulhos (já com API) */
 function DivesTable() {
