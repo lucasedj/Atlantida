@@ -6,8 +6,6 @@ import api from "../../api/client";
 
 import Arrow from "../../assets/icons/arrow-icon-blue.svg";
 import Logo from "../../assets/illustrations/logo-atlantida.svg";
-import LeftCoral from "../../assets/illustrations/left-corals.svg";
-import RightCoral from "../../assets/illustrations/right-corals.svg";
 
 import { Context } from "../../context";
 
@@ -189,12 +187,6 @@ const RegistrationForm = () => {
           <img src={Arrow} alt="Seta voltar" style={{ width: "16px", height: "16px" }} />
           VOLTAR À ETAPA ANTERIOR
         </Link>
-      </div>
-
-      {/* Corais decorativos */}
-      <div className="corals">
-        <img src={LeftCoral} alt="Coral esquerdo" className="left-coral" />
-        <img src={RightCoral} alt="Coral direito" className="right-coral" />
       </div>
 
       {/* Container principal */}
