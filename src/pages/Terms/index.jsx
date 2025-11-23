@@ -1,9 +1,15 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "./terms.css";
 
 export default function Terms() {
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
+
     <>
       {/* ================= HEADER ================= */}
       {/* Cabeçalho simples, apenas logo à esquerda e botão de download à direita */}

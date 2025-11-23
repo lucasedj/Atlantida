@@ -222,12 +222,13 @@ const renderStars = (avg = 0) => {
   const half = n - full >= 0.5 ? 1 : 0;
   const empty = 5 - full - half;
   return (
-    <span aria-label={`Nota ${num} de 5`} title={`Nota ${num} de 5`}>
-      {"★".repeat(full)}
-      {half ? "⯨" : ""}
-      {"☆".repeat(empty)}
-    </span>
-  );
+  <span className="stars" aria-label={`Nota ${num} de 5`} title={`Nota ${num} de 5`}>
+    {"★".repeat(full)}
+    {half ? "⯨" : ""}
+    {"☆".repeat(empty)}
+  </span>
+);
+
 };
 
 // Monta URL absoluta para arquivos (ex.: "/uploads/..")
@@ -421,9 +422,11 @@ function SpotModal({
           <div style={{ ...modalCss.muted, marginTop: 2 }}>{getDetailLoc(detail)}</div>
 
           {(getDetailRating(detail) || getDetailRating(detail) === 0) && (
-            <div style={modalCss.rating}>
-              {renderStars(getDetailRating(detail))} <b>{Number(getDetailRating(detail)).toFixed(1)}</b>
-            </div>
+            <div className="modal-rating" style={modalCss.rating}>
+  {renderStars(getDetailRating(detail))}
+  <b>{Number(getDetailRating(detail)).toFixed(1)}</b>
+</div>
+
           )}
 
           {/* ==== MÉTRICAS ==== */}
