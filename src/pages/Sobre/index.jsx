@@ -41,60 +41,61 @@ export default function Sobre() {
         </p>
       </section>
 
-      {/* EQUIPE */}
-      <section className="sobre__team">
-        <h3 className="sobre__team-title">Integrantes da Nossa Equipe</h3>
+<section className="sobre__team">
+  <h3 className="sobre__team-title">Integrantes da Nossa Equipe</h3>
 
-        <div className="sobre__grid">
-          {/* Card 1 */}
-          <article className="sobre__card">
-            <img src="/img01.jpeg" alt="Foto de Lucas Joanoni" className="sobre__avatar" />
-            <div className="sobre__card-body">
-              <h4 className="sobre__name">Lucas Joanoni</h4>
-              <p className="sobre__role">Desenvolvedor Front-end e<br />Back-end</p>
-              <a
-                className="sobre__link"
-                href="https://www.linkedin.com/in/lucasjoanoni"
-                target="_blank"
-                rel="noreferrer">              
-                LinkedIn
-              </a>
-            </div>
-          </article>
+  <div className="sobre__grid">
+    {/* Card 1 */}
+    <article className="sobre__card">
+      <img src="/img01.jpeg" alt="Foto de Lucas Joanoni" className="sobre__avatar" />
+      <div className="sobre__card-body">
+        <h4 className="sobre__name">Lucas Joanoni</h4>
+        <p className="sobre__role">Desenvolvedor Front-end e<br />Back-end</p>
+        <a className="sobre__link" href="https://www.linkedin.com/in/lucasjoanoni" target="_blank" rel="noreferrer">
+          LinkedIn
+        </a>
+      </div>
+    </article>
 
-          {/* Card 2 */}
-          <article className="sobre__card">
-            <img src="/img02.jpeg" alt="Foto de Gabriel Alves Bueno" className="sobre__avatar" />
-            <div className="sobre__card-body">
-              <h4 className="sobre__name">Gabriel Bueno</h4>
-              <p className="sobre__role">Desenvolvedor Front-end e<br />Back-end</p>
-              <a
-                className="sobre__link"
-                href="https://www.linkedin.com/in/gabzbueno/"
-                target="_blank"
-                rel="noreferrer">              
-                LinkedIn
-              </a>
-            </div>
-          </article>
+    {/* Card 2 */}
+    <article className="sobre__card">
+      <img src="/img02.jpeg" alt="Foto de Gabriel Alves Bueno" className="sobre__avatar" />
+      <div className="sobre__card-body">
+        <h4 className="sobre__name">Gabriel Bueno</h4>
+        <p className="sobre__role">Desenvolvedor Front-end e<br />Back-end</p>
+        <a className="sobre__link" href="https://www.linkedin.com/in/gabzbueno/" target="_blank" rel="noreferrer">
+          LinkedIn
+        </a>
+      </div>
+    </article>
 
-          {/* Card 3 */}
-          <article className="sobre__card">
-            <img src="/img03.png" alt="Foto de Camilo Perucci" className="sobre__avatar" />
-            <div className="sobre__card-body">
-              <h4 className="sobre__name">Camilo Perucci</h4>
-              <p className="sobre__role">Orientador</p>
-              <a
-                className="sobre__link"
-                href="https://www.linkedin.com/in/camilo-perucci/"
-                target="_blank"
-                rel="noreferrer">              
-                LinkedIn
-              </a>
-            </div>
-          </article>
-        </div>
-      </section>
+    {/* Card 3 */}
+    <article className="sobre__card">
+      <img src="/img03.png" alt="Foto de Camilo Perucci" className="sobre__avatar" />
+      <div className="sobre__card-body">
+        <h4 className="sobre__name">Camilo Perucci</h4>
+        <p className="sobre__role">Orientador</p>
+        <a className="sobre__link" href="https://www.linkedin.com/in/camilo-perucci/" target="_blank" rel="noreferrer">
+          LinkedIn
+        </a>
+      </div>
+    </article>
+
+    {/* Card 4 — AGORA DENTRO DA GRID */}
+    <article className="sobre__card">
+      <img src="/img04.png" alt="Foto de Diego Henrique Negretto" className="sobre__avatar" />
+      <div className="sobre__card-body">
+        <h4 className="sobre__name">Diego Negretto</h4>
+        <p className="sobre__role">Coorientador</p>
+        <a className="sobre__link" href="https://www.linkedin.com/in/diego-negretto-8653a7a2" target="_blank" rel="noreferrer">
+          LinkedIn
+        </a>
+      </div>
+    </article>
+
+  </div>
+</section>
+
 
       {/* FOOTER (igual ao Article.jsx) */}
       <footer className="footer">
