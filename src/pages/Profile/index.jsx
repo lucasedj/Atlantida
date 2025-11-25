@@ -4,7 +4,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { getCurrentUser, me, logout } from "../../features/auth/authService";
 import { apiFetch } from "../../services/api";
 
-import "../Logged/logged.css";
+import "../logged/logged.css";
 import "./profile.css";
 
 export default function Profile() {
