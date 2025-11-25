@@ -3,7 +3,7 @@ import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useDraftField, readDiveDraft, writeDiveDraft } from "./useDiveDraft";
 
-import "../Logged/logged.css";
+import "../logged/logged.css";
 import "./register-dive.css";
 
 export default function Step4() {

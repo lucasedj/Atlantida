@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { apiFetch, toPublicUrl } from "../../services/api";
 
-import "../Logged/logged.css";
+import "../logged/logged.css";
 import "./certificates.css";
 
 export default function Certificates() {

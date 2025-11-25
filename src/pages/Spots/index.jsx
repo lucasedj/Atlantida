@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import "../Logged/logged.css";
+import "../logged/logged.css";
 import "./spots.css";
 import { getCurrentUser, me, logout } from "../../features/auth/authService";
 import { apiFetch } from "../../services/api";

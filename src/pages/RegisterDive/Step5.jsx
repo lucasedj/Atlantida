@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { apiFetch } from "../../services/api";
 
-import "../Logged/logged.css";
+import "../logged/logged.css";
 import "./register-dive.css";
 
 /** Img com fallback em caminhos de /public */

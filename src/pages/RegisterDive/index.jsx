@@ -4,7 +4,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useDraftField } from "./useDiveDraft";
 import { apiFetch } from "../../services/api";
 
-import "../Logged/logged.css";
+import "../logged/logged.css";
 import "./register-dive.css";
 
 /* ================================
