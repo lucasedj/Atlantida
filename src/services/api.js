@@ -1,10 +1,6 @@
 // src/services/api.js
-export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+export const API_URL = import.meta.env.VITE_API_URL ?? "https://atlantidaapi-production.up.railway.app";
 
-/**
- * Constrói uma URL absoluta a partir de um caminho relativo do backend.
- * Ex.: toPublicUrl("/uploads/123.jpg") -> "http://localhost:3000/uploads/123.jpg"
- */
 export function toPublicUrl(raw) {
   if (!raw) return "";
   if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) return raw;
@@ -19,15 +15,6 @@ const buildURL = (path) => {
   return `${API_URL}${p}`;
 };
 
-/**
- * apiFetch(path, { method, body, headers, auth, timeoutMs, retryUnauth, parse, credentials })
- * - Não força Content-Type quando body é FormData/Blob/URLSearchParams
- * - Adiciona Authorization automaticamente quando auth=true (token em localStorage)
- * - Reenvia sem Authorization se vier 401/403 (fallback p/ rotas públicas)
- * - **NÃO** envia cookies por padrão; use { credentials: "include" } se precisar
- * - Lê JSON por padrão; suporta texto/blobs
- * - Timeout com AbortController
- */
 export async function apiFetch(
   path,
   {
