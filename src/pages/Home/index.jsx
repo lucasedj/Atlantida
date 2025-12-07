@@ -907,7 +907,7 @@ export default function Home() {
             <img src="/images/app/btn-apple-store.svg" alt="Baixar na App Store" />
           </a>
           <a className="store-btn" href="#" aria-label="Download via Google Play">
-            <img src="/images/app/btn-apple-store.svg" alt="Disponível no Google Play" />
+            <img src="/images/app/btn-google-play.svg" alt="Disponível no Google Play" />
           </a>
         </div>
 
